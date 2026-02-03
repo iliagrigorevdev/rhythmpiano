@@ -6,9 +6,11 @@ import { playTone, resumeAudio } from "./audio";
 // --- CONFIGURATION ---
 const WIDTH = 1000;
 const HEIGHT = 600;
-const NOTE_SPEED = 4; // Pixels per frame
 const KEY_HEIGHT = 150;
-const BPM = 100; // Speed of the song
+
+const urlParams = new URLSearchParams(window.location.search);
+const BPM = parseInt(urlParams.get("bpm")) || 100;
+const SPEED = parseInt(urlParams.get("speed")) || 4; // Pixels per frame
 
 // --- ABC MELODY DEFINITION ---
 // Notation: C,D,E = Octave 4 | c,d,e = Octave 5 | ^ = Sharp | Number = Duration multiplier
@@ -23,12 +25,10 @@ const DEFAULT_MELODY = `
 
 // 2. Logic to grab melody from URL Parameter (?abc=...)
 const getMelody = () => {
-  const params = new URLSearchParams(window.location.search);
-  const urlABC = params.get("abc");
+  const urlABC = urlParams.get("abc");
 
   if (urlABC) {
     console.log("Custom ABC Melody loaded from URL");
-    // decodeURIComponent ensures encoded characters like %20 (space) or %2F (/) are read correctly
     return decodeURIComponent(urlABC);
   }
 
@@ -83,8 +83,7 @@ const uiContainer = new PIXI.Container();
 
 const pianoKeys = [];
 const activeNotes = [];
-let score = 0;
-let scoreText;
+let startText;
 
 // Sequencer State
 let parsedMelody = [];
@@ -146,7 +145,7 @@ function createPiano() {
       const rect = new PIXI.Graphics();
       rect.roundRect(0, 0, BLACK_KEY_WIDTH, KEY_HEIGHT * 0.6, 3);
 
-      // Fill with WHITE so PIXI.tint works (multiplying by black 0x000000 always results in black)
+      // Fill with WHITE so PIXI.tint works
       rect.fill(0xffffff);
       // Set visual color to BLACK via tint
       rect.tint = 0x000000;
@@ -161,7 +160,7 @@ function createPiano() {
       keysContainer.addChild(rect);
       pianoKeys[index] = {
         graphic: rect,
-        originalColor: 0x000000, // We return to black tint after pressing
+        originalColor: 0x000000,
         x: x + BLACK_KEY_WIDTH / 2,
         y: yPos,
         width: BLACK_KEY_WIDTH,
@@ -172,29 +171,30 @@ function createPiano() {
 }
 
 function createUI() {
-  scoreText = new PIXI.Text({
-    text: "Score: 0\nTap to Start Audio",
+  startText = new PIXI.Text({
+    text: "Tap to Start",
     style: {
       fontFamily: "Arial",
-      fontSize: 24,
+      fontSize: 36,
       fill: 0xffffff,
       align: "center",
+      fontWeight: "bold",
     },
   });
-  scoreText.x = WIDTH / 2;
-  scoreText.y = 50;
-  scoreText.anchor.set(0.5);
-  scoreText.eventMode = "static";
-  scoreText.cursor = "pointer";
-  scoreText.on("pointerdown", () => {
+  startText.x = WIDTH / 2;
+  startText.y = HEIGHT / 2 - 100;
+  startText.anchor.set(0.5);
+  startText.eventMode = "static";
+  startText.cursor = "pointer";
+  startText.on("pointerdown", () => {
     if (!isGameActive) {
       isGameActive = true;
       resumeAudio();
-      scoreText.text = "Score: 0";
+      startText.visible = false;
     }
   });
 
-  uiContainer.addChild(scoreText);
+  uiContainer.addChild(startText);
 }
 
 // --- GAME LOGIC ---
@@ -224,15 +224,11 @@ function spawnNote(noteData) {
   activeNotes.push(note);
 }
 
-function updateScoreDisplay() {
-  scoreText.text = `Score: ${score}`;
-}
-
 function triggerKey(index) {
   if (!isGameActive) {
     isGameActive = true;
     resumeAudio();
-    scoreText.text = "Score: 0";
+    startText.visible = false;
   }
 
   const keyObj = pianoKeys[index];
@@ -249,33 +245,22 @@ function triggerKey(index) {
   // Play audio
   playTone(keyObj.data.freq);
 
-  // Hit detection
+  // Hit detection (Visual effect only, no scoring)
   const hitLineY = keyObj.y;
   const hitZone = 60;
-  let hit = false;
 
   for (let i = activeNotes.length - 1; i >= 0; i--) {
     const n = activeNotes[i];
     if (n.targetIndex === index && n.active) {
       const dist = Math.abs(n.y - hitLineY);
       if (dist < hitZone) {
-        // Scoring
-        score += 100;
-        if (dist < 15) score += 50; // Perfect hit
-
         showHitEffect(keyObj.x, hitLineY);
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
-        hit = true;
         break; // Only hit one note per tap
       }
     }
   }
-
-  if (!hit) {
-    score = Math.max(0, score - 10);
-  }
-  updateScoreDisplay();
 }
 
 function showHitEffect(x, y) {
@@ -323,7 +308,6 @@ async function initGame() {
   parsedMelody = parseABC(MELODY_ABC);
 
   // Calculate frames per beat
-  // 60 BPM = 1 beat per sec = 60 frames.
   const framesPerBeat = (60 / BPM) * 60;
 
   // Resize Logic
@@ -373,13 +357,12 @@ async function initGame() {
     // 2. Physics (Falling Notes)
     for (let i = activeNotes.length - 1; i >= 0; i--) {
       const n = activeNotes[i];
-      n.y += NOTE_SPEED * ticker.deltaTime;
+      n.y += SPEED * ticker.deltaTime;
 
+      // Remove notes that fall off screen (no penalty)
       if (n.y > HEIGHT) {
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
-        score = Math.max(0, score - 20);
-        updateScoreDisplay();
       }
     }
   });
