@@ -24,8 +24,16 @@ export function playTone(freq) {
   osc.type = "sine";
   osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
 
+  // --- EQUAL LOUDNESS ADJUSTMENT ---
+  // High frequencies sound naturally louder than low frequencies for sine waves.
+  // We calculate volume inversely proportional to frequency.
+  // Example:
+  // - Low Note (F3, ~175Hz): 100/175 = ~0.57 gain (Boosted from original 0.3)
+  // - High Note (E5, ~660Hz): 100/660 = ~0.15 gain (Attenuated from original 0.3)
+  const volume = Math.min(0.6, 100 / freq);
+
   // Envelope: Attack fast, Decay exponential
-  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
 
   osc.connect(gain);
