@@ -98,6 +98,13 @@ function createPiano() {
   let whiteKeyIndex = 0;
   const yPos = HEIGHT - KEY_HEIGHT - 20;
 
+  // 0. Draw Visual Hit Line (Judgment Line)
+  const hitLine = new PIXI.Graphics();
+  hitLine.moveTo(START_X, yPos);
+  hitLine.lineTo(START_X + AVAILABLE_WIDTH, yPos);
+  hitLine.stroke({ width: 4, color: 0xff0000, alpha: 0.8 });
+  uiContainer.addChild(hitLine);
+
   // 1. Draw White Keys
   NOTES_DATA.forEach((note, index) => {
     if (note.type === "white") {
