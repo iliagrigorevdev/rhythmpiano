@@ -11,34 +11,54 @@ export function resumeAudio() {
 }
 
 /**
- * Plays a sine wave tone at a specific frequency.
+ * Plays a synthesized piano-like tone.
+ * Replaces the basic sine wave with a filtered sawtooth wave for a richer timbre.
  * @param {number} freq - Frequency in Hertz
  */
 export function playTone(freq) {
-  // Ensure context is running before playing
   resumeAudio();
 
+  const now = audioCtx.currentTime;
+  const duration = 2.0; // Notes ring out longer for a better feel
+
+  // 1. Create Nodes
   const osc = audioCtx.createOscillator();
+  const filter = audioCtx.createBiquadFilter();
   const gain = audioCtx.createGain();
 
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  // 2. Oscillator Setup
+  // Sawtooth waves contain all integer harmonics, providing a rich starting sound
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(freq, now);
 
-  // --- EQUAL LOUDNESS ADJUSTMENT ---
-  // High frequencies sound naturally louder than low frequencies for sine waves.
-  // We calculate volume inversely proportional to frequency.
-  // Example:
-  // - Low Note (F3, ~175Hz): 100/175 = ~0.57 gain (Boosted from original 0.3)
-  // - High Note (E5, ~660Hz): 100/660 = ~0.15 gain (Attenuated from original 0.3)
-  const volume = Math.min(0.6, 100 / freq);
+  // 3. Filter Setup (Low-pass)
+  // This simulates the "hammer strike": sound starts bright and gets duller
+  filter.type = "lowpass";
+  filter.Q.value = 0; // No resonance needed
 
-  // Envelope: Attack fast, Decay exponential
-  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+  // Filter Envelope
+  // Start cutoff high (bright) and decay quickly to the fundamental frequency
+  const attackCutoff = freq * 6;
+  const sustainCutoff = freq;
 
-  osc.connect(gain);
+  filter.frequency.setValueAtTime(attackCutoff, now);
+  // The brightness decays quickly (0.4s) mimicking the initial energy dissipation
+  filter.frequency.exponentialRampToValueAtTime(sustainCutoff, now + 0.4);
+
+  // 4. Amplitude (Volume) Envelope
+  // Sawtooth waves are naturally louder than sine waves, so we use a lower base volume (0.2).
+  const volume = 0.2;
+
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(volume, now + 0.02); // Fast attack (percussive)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration); // Long exponential tail
+
+  // 5. Connect the Graph: Oscillator -> Filter -> Gain -> Output
+  osc.connect(filter);
+  filter.connect(gain);
   gain.connect(audioCtx.destination);
 
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.5);
+  // 6. Play and Schedule Stop
+  osc.start(now);
+  osc.stop(now + duration);
 }
