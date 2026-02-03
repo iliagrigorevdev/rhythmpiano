@@ -1,6 +1,7 @@
 import "./style.css";
 import * as PIXI from "pixi.js";
 import { parseABC } from "./parser";
+import { playTone, resumeAudio } from "./audio";
 
 // --- CONFIGURATION ---
 const WIDTH = 1000;
@@ -92,26 +93,6 @@ let timeSinceLastNote = 0;
 let timeUntilNextNote = 0; // frames
 let isGameActive = false;
 
-// --- AUDIO SYSTEM ---
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-const audioCtx = new AudioContext();
-
-function playTone(freq) {
-  if (audioCtx.state === "suspended") audioCtx.resume();
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
-  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.5);
-}
-
 // --- PIANO GENERATION ---
 function createPiano() {
   let whiteKeyIndex = 0;
@@ -201,7 +182,7 @@ function createUI() {
   scoreText.on("pointerdown", () => {
     if (!isGameActive) {
       isGameActive = true;
-      audioCtx.resume();
+      resumeAudio();
       scoreText.text = "Score: 0";
     }
   });
@@ -215,8 +196,6 @@ function spawnNote(noteData) {
   const index = NOTES_DATA.findIndex((n) => n.id === noteData.id);
 
   if (index === -1) {
-    // If the URL contains a note not in our range, we ignore it silently or log it
-    // console.warn("Note out of range:", noteData.id);
     return;
   }
 
@@ -245,7 +224,7 @@ function updateScoreDisplay() {
 function triggerKey(index) {
   if (!isGameActive) {
     isGameActive = true;
-    audioCtx.resume();
+    resumeAudio();
     scoreText.text = "Score: 0";
   }
 
@@ -334,7 +313,6 @@ async function initGame() {
   createUI();
 
   // Parse Melody using the imported function
-  // Now uses the MELODY_ABC derived from URL or Default
   parsedMelody = parseABC(MELODY_ABC);
 
   // Calculate frames per beat
