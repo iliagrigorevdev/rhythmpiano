@@ -1,7 +1,7 @@
 import "./style.css";
 import * as PIXI from "pixi.js";
 import { parseABC } from "./parser";
-import { playTone, resumeAudio, initAudioSystem } from "./audio";
+import { playTone, resumeAudio } from "./audio";
 
 // --- CONFIGURATION ---
 const WIDTH = 1000;
@@ -182,7 +182,6 @@ function createUI() {
   scoreText.on("pointerdown", () => {
     if (!isGameActive) {
       isGameActive = true;
-      initAudioSystem(); // Initialize the reverb buffer here
       resumeAudio();
       scoreText.text = "Score: 0";
     }
@@ -225,7 +224,6 @@ function updateScoreDisplay() {
 function triggerKey(index) {
   if (!isGameActive) {
     isGameActive = true;
-    initAudioSystem(); // Initialize here too just in case they click a key first
     resumeAudio();
     scoreText.text = "Score: 0";
   }
