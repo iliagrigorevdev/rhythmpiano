@@ -5,7 +5,7 @@ import { playTone, resumeAudio } from "./audio";
 
 // --- CONFIGURATION ---
 const WIDTH = 1000;
-const HEIGHT = 600;
+const HEIGHT = 500;
 const KEY_HEIGHT = 150;
 
 const urlParams = new URLSearchParams(window.location.search);
