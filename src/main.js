@@ -87,7 +87,10 @@ const uiContainer = new PIXI.Container();
 
 const pianoKeys = [];
 const activeNotes = [];
+
+// UI Elements
 let startText;
+let resultText;
 
 // Sequencer State
 let parsedMelody = [];
@@ -95,6 +98,11 @@ let melodyIndex = 0;
 let timeSinceLastNote = 0;
 let timeUntilNextNote = 0; // frames
 let isGameActive = false;
+let isSongFinished = false; // Flag to prevent multi-triggering end game
+
+// Scoring State
+let notesHit = 0;
+let totalSpawned = 0;
 
 // --- PIANO GENERATION ---
 function createPiano() {
@@ -186,40 +194,85 @@ function createPiano() {
 }
 
 function createUI() {
-  startText = new PIXI.Text({
-    text: "Tap to Start",
-    style: {
-      fontFamily: "Arial",
-      fontSize: 36,
-      fill: 0xffffff,
-      align: "center",
-      fontWeight: "bold",
-    },
-  });
+  const style = {
+    fontFamily: "Arial",
+    fontSize: 36,
+    fill: 0xffffff,
+    align: "center",
+    fontWeight: "bold",
+    stroke: { color: 0x000000, width: 4 }, // Added stroke for readability
+  };
+
+  // Start Text
+  startText = new PIXI.Text({ text: "Tap to Start", style });
   startText.x = WIDTH / 2;
   startText.y = HEIGHT / 2 - 100;
   startText.anchor.set(0.5);
   startText.eventMode = "static";
   startText.cursor = "pointer";
   startText.on("pointerdown", () => {
-    if (!isGameActive) {
-      isGameActive = true;
-      resumeAudio();
-      startText.visible = false;
-    }
+    resetGame();
   });
 
   uiContainer.addChild(startText);
+
+  // Result Text
+  resultText = new PIXI.Text({ text: "", style });
+  resultText.x = WIDTH / 2;
+  resultText.y = HEIGHT / 2 - 100;
+  resultText.anchor.set(0.5);
+  resultText.visible = false;
+  resultText.eventMode = "static";
+  resultText.cursor = "pointer";
+  resultText.on("pointerdown", () => {
+    resetGame();
+  });
+
+  uiContainer.addChild(resultText);
 }
 
 // --- GAME LOGIC ---
-function spawnNote(noteData) {
-  // Find key index by note ID (e.g., "C4")
-  const index = NOTES_DATA.findIndex((n) => n.id === noteData.id);
+function resetGame() {
+  // Reset Variables
+  melodyIndex = 0;
+  timeSinceLastNote = 0;
+  timeUntilNextNote = 0;
+  notesHit = 0;
+  totalSpawned = 0;
+  isSongFinished = false;
 
-  if (index === -1) {
-    return;
+  // Clear existing notes
+  for (const note of activeNotes) {
+    notesContainer.removeChild(note);
   }
+  activeNotes.length = 0;
+
+  // Toggle UI
+  startText.visible = false;
+  resultText.visible = false;
+
+  // Audio context resume
+  resumeAudio();
+
+  // Start Loop
+  isGameActive = true;
+}
+
+function showResults() {
+  isGameActive = false;
+
+  let percentage = 0;
+  if (totalSpawned > 0) {
+    percentage = Math.round((notesHit / totalSpawned) * 100);
+  }
+
+  resultText.text = `Melody Finished!\nScore: ${percentage}%\n\nTap to Restart`;
+  resultText.visible = true;
+}
+
+function spawnNote(noteData) {
+  const index = NOTES_DATA.findIndex((n) => n.id === noteData.id);
+  if (index === -1) return;
 
   const targetKey = pianoKeys[index];
   const note = new PIXI.Graphics();
@@ -242,19 +295,19 @@ function spawnNote(noteData) {
 }
 
 function triggerKey(index) {
-  if (!isGameActive) {
-    isGameActive = true;
-    resumeAudio();
-    startText.visible = false;
+  // If game isn't active, first tap starts it
+  if (!isGameActive && !resultText.visible) {
+    resetGame();
+    return;
   }
+
+  if (!isGameActive) return;
 
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
 
   // Visual feedback
-  keyObj.graphic.tint = 0xffa500; // Highlight Orange
-
-  // Reset to the key's specific original color (White or Black)
+  keyObj.graphic.tint = 0xffa500;
   setTimeout(() => {
     keyObj.graphic.tint = keyObj.originalColor;
   }, 150);
@@ -273,6 +326,10 @@ function triggerKey(index) {
       if (dist < hitZone) {
         // Success Hit (White)
         showHitEffect(keyObj.x, hitLineY, 0xffffff);
+
+        // --- SCORE UPDATE ---
+        notesHit++;
+
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
         break; // Only hit one note per tap
@@ -369,6 +426,8 @@ async function initGame() {
         // Spawn the note (unless it's a rest)
         if (noteData.id !== null) {
           spawnNote(noteData);
+          // --- COUNT TOTAL NOTES ---
+          totalSpawned++;
         }
 
         // Set wait time for the *next* note based on *current* note's duration
@@ -376,13 +435,15 @@ async function initGame() {
         timeSinceLastNote = 0;
 
         melodyIndex++;
-
-        // Loop song
-        if (melodyIndex >= parsedMelody.length) {
-          setTimeout(() => {
-            melodyIndex = 0;
-          }, 2000);
-        }
+      }
+    } else if (parsedMelody.length > 0 && melodyIndex >= parsedMelody.length) {
+      // --- MELODY END LOGIC ---
+      if (!isSongFinished) {
+        isSongFinished = true;
+        // Wait 3 seconds for last notes to fall, then show score
+        setTimeout(() => {
+          showResults();
+        }, 3000);
       }
     }
 
