@@ -12,6 +12,10 @@ const urlParams = new URLSearchParams(window.location.search);
 const BPM = parseInt(urlParams.get("bpm")) || 100;
 const SPEED = parseInt(urlParams.get("speed")) || 4; // Pixels per frame
 
+// --- COLORS ---
+const COLOR_WHITE_KEY = 0xf0f0f0; // Off-white/Light Gray
+const COLOR_BLACK_KEY = 0x202020; // Not pure black
+
 // --- ABC MELODY DEFINITION ---
 // Notation: C,D,E = Octave 4 | c,d,e = Octave 5 | ^ = Sharp | Number = Duration multiplier
 
@@ -99,9 +103,9 @@ function createPiano() {
 
   // 0. Draw Visual Hit Line (Judgment Line)
   const hitLine = new PIXI.Graphics();
-  hitLine.moveTo(START_X, yPos);
-  hitLine.lineTo(START_X + AVAILABLE_WIDTH, yPos);
-  hitLine.stroke({ width: 4, color: 0xff0000, alpha: 0.8 });
+  hitLine.moveTo(START_X, yPos + 2);
+  hitLine.lineTo(START_X + AVAILABLE_WIDTH, yPos + 2);
+  hitLine.stroke({ width: 6, color: 0xcc0000 });
   uiContainer.addChild(hitLine);
 
   // 1. Draw White Keys
@@ -109,7 +113,9 @@ function createPiano() {
     if (note.type === "white") {
       const x = START_X + whiteKeyIndex * WHITE_KEY_WIDTH;
       const rect = new PIXI.Graphics();
-      rect.rect(0, 0, WHITE_KEY_WIDTH, KEY_HEIGHT);
+      rect.roundRect(0, 0, WHITE_KEY_WIDTH, KEY_HEIGHT, 6);
+
+      // Use pure white for fill so Tinting works correctly
       rect.fill(0xffffff);
       rect.stroke({ width: 2, color: 0x000000 });
       rect.x = x;
@@ -118,13 +124,13 @@ function createPiano() {
       rect.cursor = "pointer";
       rect.on("pointerdown", () => triggerKey(index));
 
-      // Tint setup: White keys default to white
-      rect.tint = 0xffffff;
+      // Tint setup: Off-white
+      rect.tint = COLOR_WHITE_KEY;
 
       keysContainer.addChild(rect);
       pianoKeys[index] = {
         graphic: rect,
-        originalColor: 0xffffff,
+        originalColor: COLOR_WHITE_KEY,
         x: x + WHITE_KEY_WIDTH / 2,
         y: yPos,
         width: WHITE_KEY_WIDTH,
@@ -147,8 +153,9 @@ function createPiano() {
 
       // Fill with WHITE so PIXI.tint works
       rect.fill(0xffffff);
-      // Set visual color to BLACK via tint
-      rect.tint = 0x000000;
+
+      // Set visual color to Charcoal via tint
+      rect.tint = COLOR_BLACK_KEY;
 
       rect.stroke({ width: 1, color: 0x555555 });
       rect.x = x;
@@ -160,7 +167,7 @@ function createPiano() {
       keysContainer.addChild(rect);
       pianoKeys[index] = {
         graphic: rect,
-        originalColor: 0x000000,
+        originalColor: COLOR_BLACK_KEY,
         x: x + BLACK_KEY_WIDTH / 2,
         y: yPos,
         width: BLACK_KEY_WIDTH,
