@@ -3,6 +3,9 @@
  * Returns an array of objects: { id: "NoteID" | null, duration: Number }
  */
 export function parseABC(abcString) {
+  // Convert points to commas
+  abcString = abcString.replace(/\./g, ",");
+
   // 1. Clean string: remove bar lines |, whitespace, standardizing
   // Regex looks for: (accidental)(note)(octave)(duration)
   // Pattern: [^=_]? (optional accidental) [A-Ga-gz] (note) [,']* (octave modifiers) [\d\/]* (duration)
