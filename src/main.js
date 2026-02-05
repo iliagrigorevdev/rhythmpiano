@@ -247,14 +247,15 @@ function triggerKey(index) {
 
   // Hit detection (Visual effect only, no scoring)
   const hitLineY = keyObj.y;
-  const hitZone = 60;
+  const hitZone = 60; // How far below the line is valid
 
   for (let i = activeNotes.length - 1; i >= 0; i--) {
     const n = activeNotes[i];
     if (n.targetIndex === index && n.active) {
       const dist = Math.abs(n.y - hitLineY);
       if (dist < hitZone) {
-        showHitEffect(keyObj.x, hitLineY);
+        // Success Hit (White)
+        showHitEffect(keyObj.x, hitLineY, 0xffffff);
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
         break; // Only hit one note per tap
@@ -263,10 +264,10 @@ function triggerKey(index) {
   }
 }
 
-function showHitEffect(x, y) {
+function showHitEffect(x, y, color) {
   const burst = new PIXI.Graphics();
   burst.circle(0, 0, 30);
-  burst.fill({ color: 0xffffff, alpha: 0.6 });
+  burst.fill({ color: color, alpha: 0.6 });
   burst.x = x;
   burst.y = y;
   gameContainer.addChild(burst);
@@ -279,6 +280,7 @@ function showHitEffect(x, y) {
     if (burst.alpha <= 0) {
       gameContainer.removeChild(burst);
       app.ticker.remove(animate);
+      burst.destroy();
     }
   };
   app.ticker.add(animate);
@@ -297,6 +299,7 @@ async function initGame() {
   document.body.appendChild(app.canvas);
 
   app.stage.addChild(gameContainer);
+  // Important: Notes are added BEFORE Keys, so they render BEHIND keys.
   gameContainer.addChild(notesContainer);
   gameContainer.addChild(keysContainer);
   gameContainer.addChild(uiContainer);
@@ -359,8 +362,19 @@ async function initGame() {
       const n = activeNotes[i];
       n.y += SPEED * ticker.deltaTime;
 
-      // Remove notes that fall off screen (no penalty)
-      if (n.y > HEIGHT) {
+      const targetKey = pianoKeys[n.targetIndex];
+
+      // "Miss" Threshold Calculation:
+      // The Hit Line is at targetKey.y.
+      // The valid Hit Zone is approx 45px below that.
+      // Once the note passes targetKey.y + 45, it is unhittable and "hidden" behind the key.
+      const missThreshold = targetKey.y + 45;
+
+      if (n.y > missThreshold) {
+        // Show Miss Effect (Red Burst)
+        showHitEffect(targetKey.x, targetKey.y, 0xff0000);
+
+        // Remove note
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
       }
