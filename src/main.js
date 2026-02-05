@@ -164,6 +164,14 @@ function createPiano() {
       rect.cursor = "pointer";
       rect.on("pointerdown", () => triggerKey(index));
 
+      // Define a hit area wider than the visual key
+      // and centered relative to the visual drawing.
+      // x is negative to extend to the left of the drawing origin.
+      const hitWidth = WHITE_KEY_WIDTH * 0.9;
+      const hitHeight = KEY_HEIGHT * 0.6;
+      const hitX = (BLACK_KEY_WIDTH - hitWidth) / 2;
+      rect.hitArea = new PIXI.Rectangle(hitX, 0, hitWidth, hitHeight);
+
       keysContainer.addChild(rect);
       pianoKeys[index] = {
         graphic: rect,
@@ -216,6 +224,8 @@ function spawnNote(noteData) {
   const targetKey = pianoKeys[index];
   const note = new PIXI.Graphics();
   const color = targetKey.data.type === "white" ? 0x00ffff : 0xff00ff;
+
+  // Visual width of the note matches the visual width of the key
   const width = targetKey.width - 4;
 
   note.roundRect(-width / 2, 0, width, 40, 4);
