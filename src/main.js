@@ -385,9 +385,9 @@ async function initGame() {
 
       // "Miss" Threshold Calculation:
       // The Hit Line is at targetKey.y.
-      // The valid Hit Zone is approx 45px below that.
-      // Once the note passes targetKey.y + 45, it is unhittable and "hidden" behind the key.
-      const missThreshold = targetKey.y + 45;
+      // The valid Hit Zone is approx 20px below that.
+      // Once the note passes targetKey.y + 20, it is unhittable and "hidden" behind the key.
+      const missThreshold = targetKey.y + 20;
 
       if (n.y > missThreshold) {
         // Show Miss Effect (Red Burst)
