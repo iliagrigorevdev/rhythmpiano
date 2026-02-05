@@ -322,14 +322,26 @@ async function initGame() {
 
   // Resize Logic
   const resize = () => {
+    // Pixi v8 "resizeTo" automatically updates app.screen.width/height
     const screenWidth = app.screen.width;
     const screenHeight = app.screen.height;
+
+    // Safety check to prevent 0 scale
+    if (screenWidth === 0 || screenHeight === 0) return;
+
     const scale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
     gameContainer.scale.set(scale);
+
+    // Center the container
     gameContainer.x = (screenWidth - WIDTH * scale) / 2;
     gameContainer.y = (screenHeight - HEIGHT * scale) / 2;
   };
-  window.addEventListener("resize", resize);
+
+  // Important: Listen to app.renderer 'resize', not window 'resize'.
+  // This ensures Pixi has finished updating the canvas size before we scale the container.
+  app.renderer.on("resize", resize);
+
+  // Call once manually to set initial position
   resize();
 
   // Game Loop
