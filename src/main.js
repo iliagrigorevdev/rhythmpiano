@@ -27,13 +27,13 @@ const DEFAULT_MELODY = `
   E E F G | G F E D | C C D E | D3/2 C/2 C2
 `;
 
-// 2. Logic to grab melody from URL Parameter (?abc=...)
+// 2. Logic to grab melody from URL Parameter (?melody=...)
 const getMelody = () => {
-  const urlABC = urlParams.get("abc");
+  const urlMelody = urlParams.get("melody");
 
-  if (urlABC) {
-    console.log("Custom ABC Melody loaded from URL");
-    return decodeURIComponent(urlABC);
+  if (urlMelody) {
+    console.log("Custom melody loaded from URL");
+    return decodeURIComponent(urlMelody);
   }
 
   return DEFAULT_MELODY;
