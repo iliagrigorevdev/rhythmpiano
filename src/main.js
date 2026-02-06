@@ -19,15 +19,7 @@ const COLOR_BLACK_KEY = 0x202020; // Not pure black
 // --- ABC MELODY DEFINITION ---
 // Notation: C,D,E = Octave 4 | c,d,e = Octave 5 | ^ = Sharp | Number = Duration multiplier
 
-// 1. Define the fallback melody ("Ode to Joy")
-const DEFAULT_MELODY = `
-  E E F G | G F E D | C C D E | E3/2 D/2 D2 |
-  E E F G | G F E D | C C D E | D3/2 C/2 C2 |
-  D D E C | D E/2 F/2 E C | D E/2 F/2 E D | C D G,2 |
-  E E F G | G F E D | C C D E | D3/2 C/2 C2
-`;
-
-// 2. Logic to grab melody from URL Parameter (?melody=...)
+// 1. Logic to grab melody from URL Parameter (?melody=...)
 const getMelody = () => {
   const urlMelody = urlParams.get("melody");
 
@@ -36,7 +28,8 @@ const getMelody = () => {
     return decodeURIComponent(urlMelody);
   }
 
-  return DEFAULT_MELODY;
+  // Return empty string for Free Mode (No sequencer, just piano)
+  return "";
 };
 
 const MELODY_ABC = getMelody();
@@ -204,7 +197,10 @@ function createUI() {
   };
 
   // Start Text
-  startText = new PIXI.Text({ text: "Tap to Start", style });
+  // Update text based on mode
+  const textContent =
+    parsedMelody.length > 0 ? "Tap to Start" : "Tap for Free Play";
+  startText = new PIXI.Text({ text: textContent, style });
   startText.x = WIDTH / 2;
   startText.y = HEIGHT / 2 - 100;
   startText.anchor.set(0.5);
@@ -378,11 +374,11 @@ async function initGame() {
   gameContainer.addChild(keysContainer);
   gameContainer.addChild(uiContainer);
 
-  createPiano();
-  createUI();
-
   // Parse Melody using the imported function
   parsedMelody = parseABC(MELODY_ABC);
+
+  createPiano();
+  createUI();
 
   // Calculate frames per beat
   const framesPerBeat = (60 / BPM) * 60;
