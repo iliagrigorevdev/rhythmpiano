@@ -320,8 +320,8 @@ function triggerKey(index) {
     if (n.targetIndex === index && n.active) {
       const dist = Math.abs(n.y - hitLineY);
       if (dist < hitZone) {
-        // Success Hit (White)
-        showHitEffect(keyObj.x, hitLineY, 0xffffff);
+        // Success Hit
+        showHitEffect(keyObj.x, hitLineY);
 
         // --- SCORE UPDATE ---
         notesHit++;
@@ -334,10 +334,10 @@ function triggerKey(index) {
   }
 }
 
-function showHitEffect(x, y, color) {
+function showHitEffect(x, y) {
   const burst = new PIXI.Graphics();
   burst.circle(0, 0, 30);
-  burst.fill({ color: color, alpha: 0.6 });
+  burst.fill({ color: 0xffffff, alpha: 0.6 });
   burst.x = x;
   burst.y = y;
   gameContainer.addChild(burst);
@@ -457,9 +457,6 @@ async function initGame() {
       const missThreshold = targetKey.y + 20;
 
       if (n.y > missThreshold) {
-        // Show Miss Effect (Red Burst)
-        showHitEffect(targetKey.x, targetKey.y, 0xff0000);
-
         // Remove note
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
