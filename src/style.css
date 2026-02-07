@@ -7,7 +7,19 @@ body {
   background: #222;
   overflow: hidden;
   font-family: sans-serif;
-  touch-action: none; /* Prevents zooming/panning on mobile */
+  touch-action: none;
+}
+
+/* Apply interaction blocking to ALL elements, not just body */
+* {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Old Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+  -webkit-tap-highlight-color: transparent; /* Removes blue tap box on Android */
+  outline: none; /* Removes focus ring */
 }
 
 canvas {

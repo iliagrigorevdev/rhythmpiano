@@ -357,7 +357,19 @@ async function initGame() {
     resolution: window.devicePixelRatio || 1,
   });
 
-  document.body.appendChild(app.canvas);
+  // --- Native Event blocking for Android ---
+  const canvas = app.canvas;
+  document.body.appendChild(canvas);
+
+  // Prevent default browser gestures (Long press, Zoom, Pan) on the canvas
+  // This specifically stops the Android "context menu" vibration.
+  // Note: PIXI uses Pointer Events, so blocking 'touchstart' prevents
+  // browser emulation but still allows PIXI to function.
+  const preventDefault = (e) => e.preventDefault();
+  canvas.addEventListener("touchstart", preventDefault, { passive: false });
+  canvas.addEventListener("touchmove", preventDefault, { passive: false });
+  canvas.addEventListener("touchend", preventDefault, { passive: false });
+  canvas.addEventListener("contextmenu", preventDefault, { passive: false });
 
   app.stage.addChild(gameContainer);
   gameContainer.addChild(notesContainer);
@@ -369,7 +381,7 @@ async function initGame() {
   createPiano();
   createUI();
 
-  // Setup Resize Listener (Call immediately to ensure correct initial size)
+  // Setup Resize Listener
   const resize = () => {
     const screenWidth = app.screen.width;
     const screenHeight = app.screen.height;
