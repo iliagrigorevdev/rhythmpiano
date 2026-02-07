@@ -19,11 +19,11 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 
 Click below to load the melody directly:
 
-- [**▶️ Sigma Boy**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=250&melody=_G_G_G_dB2B_dA2AB_A2z2_G_G_G_dBBB_dAAAB_A2z2)
+- [**▶️ Sigma Boy**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=125&melody=_G_G_G_dB2B_dA2AB_A2z2_G_G_G_dBBB_dAAAB_A2z2)
 
-- [**▶️ How It's Done (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=300&melody=DDD2F2FED2D2_B2z2_B2_B2d2dc_B2A2D2z2DDD2F2FED2D2_B2_BAG2F2z2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2A2A2D2_B2_B_B2zA2z2A2A2D2_B2_B_B2zA2z2AAA2D2_B2_B_B2zA2z2A2A2A2A2_E_EC2_E2D2)
+- [**▶️ How It's Done (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=150&melody=DDD2F2FED2D2_B2z2_B2_B2d2dc_B2A2D2z2DDD2F2FED2D2_B2_BAG2F2z2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2A2A2D2_B2_B_B2zA2z2A2A2D2_B2_B_B2zA2z2AAA2D2_B2_B_B2zA2z2A2A2A2A2_E_EC2_E2D2)
 
-- [**▶️ Gravity Falls Theme**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=320&melody=FDA.DFDA.DFCA.CFCA.CE_DA._DE_DA._DE_DA._DE2A2D6E2F8A3G3A2C8D6E2F4E4G4A4G4F4z2F2F2F2A2A2G2F2z2A2A2A2G2A2G2F2z2F2F2F2A2A2G2F2z2A2A2A2z2_d2_d2_d2z2F2F2F2A2A2G2F2z2_B2_B2_B2G4c4A4E4FDFAE_DAdd8)
+- [**▶️ Gravity Falls Theme**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=160&melody=FDA.DFDA.DFCA.CFCA.CE_DA._DE_DA._DE_DA._DE2A2D6E2F8A3G3A2C8D6E2F4E4G4A4G4F4z2F2F2F2A2A2G2F2z2A2A2A2G2A2G2F2z2F2F2F2A2A2G2F2z2A2A2A2z2_d2_d2_d2z2F2F2F2A2A2G2F2z2_B2_B2_B2G4c4A4E4FDFAE_DAdd8)
 
 ## 🛠️ Configuration & Custom Melodies
 
@@ -33,13 +33,13 @@ You can create your own levels by modifying the URL parameters.
 
 | Parameter | Description                                   | Default |
 | :-------- | :-------------------------------------------- | :------ |
-| `bpm`     | Beats per minute (Controls note spawn rate).  | `100`   |
+| `bpm`     | Beats per minute (Standard Quarter-note BPM). | `100`   |
 | `speed`   | Falling speed of notes in pixels per frame.   | `4`     |
 | `melody`  | The encoded note sequence (see syntax below). | `""`    |
 
 ### Melody Syntax
 
-The app uses a simplified ABC-style notation parser (`src/parser.js`):
+The app uses a simplified ABC-style notation parser (`src/parser.js`). The default note duration is treated as an **Eighth Note**.
 
 - **Notes**: `C`, `D`, `E`, `F`, `G`, `A`, `B`.
 - **Octaves**:
@@ -48,12 +48,14 @@ The app uses a simplified ABC-style notation parser (`src/parser.js`):
   - Add `.` to lower an octave (e.g., `C.` = C3).
 - **Accidentals**:
   - `_` for Flat (e.g., `_B` is Bb).
-- **Duration**: Numbers after the note define length relative to the beat.
-  - `C2` = C for 2 beats.
-- **Rests**: Use `z` for silence (e.g., `z2` is a 2-beat rest).
+- **Duration**: Numbers after the note define length relative to an **eighth note**.
+  - `C` (No number) = Eighth Note.
+  - `C2` = Quarter Note (2 eighths).
+  - `C4` = Half Note (4 eighths).
+- **Rests**: Use `z` for silence (e.g., `z2` is a Quarter Note rest).
 
 **Example:**
-`?bpm=120&melody=C2E2G2c4` (Major arpeggio)
+`?bpm=120&melody=C2E2G2c4` (Major arpeggio: 3 quarter notes followed by a half note)
 
 ## 💻 Local Development
 

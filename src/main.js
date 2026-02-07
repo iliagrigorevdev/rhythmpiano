@@ -408,7 +408,10 @@ async function initGame() {
   loadingText.visible = false;
   startText.visible = true;
 
-  const framesPerBeat = (60 / BPM) * 60;
+  // BPM is typically beats (Quarter notes) per minute.
+  // The melody is specified in Eighth notes (duration 1 = 1/8th).
+  // Therefore, we divide the frames per quarter note by 2.
+  const framesPerBeat = ((60 / BPM) * 60) / 2;
 
   app.ticker.add((ticker) => {
     if (!isGameActive) return;
