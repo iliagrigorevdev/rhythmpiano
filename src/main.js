@@ -12,7 +12,6 @@ import {
 // --- CONFIGURATION ---
 const WIDTH = 1000;
 const HEIGHT = 400;
-const KEY_HEIGHT = 150;
 
 const urlParams = new URLSearchParams(window.location.search);
 const BPM = parseInt(urlParams.get("bpm")) || 100;
@@ -46,6 +45,8 @@ const AVAILABLE_WIDTH = WIDTH * 0.95;
 const START_X = (WIDTH - AVAILABLE_WIDTH) / 2;
 const WHITE_KEY_WIDTH = AVAILABLE_WIDTH / TOTAL_WHITE_KEYS;
 const BLACK_KEY_WIDTH = WHITE_KEY_WIDTH * 0.65;
+const WHITE_KEY_HEIGHT = 160;
+const BLACK_KEY_HEIGHT = WHITE_KEY_HEIGHT * 0.55;
 
 // --- SETUP PIXI & STATE ---
 const app = new PIXI.Application();
@@ -77,7 +78,7 @@ let totalSpawned = 0;
 // --- PIANO GENERATION ---
 function createPiano() {
   let whiteKeyIndex = 0;
-  const yPos = HEIGHT - KEY_HEIGHT - 20;
+  const yPos = HEIGHT - WHITE_KEY_HEIGHT - 20;
 
   // 0. Draw Visual Hit Line (Judgment Line)
   const hitLine = new PIXI.Graphics();
@@ -91,7 +92,7 @@ function createPiano() {
     if (note.type === "white") {
       const x = START_X + whiteKeyIndex * WHITE_KEY_WIDTH;
       const rect = new PIXI.Graphics();
-      rect.roundRect(0, 0, WHITE_KEY_WIDTH, KEY_HEIGHT, 6);
+      rect.roundRect(0, 0, WHITE_KEY_WIDTH, WHITE_KEY_HEIGHT, 6);
 
       rect.fill(0xffffff);
       rect.stroke({ width: 2, color: 0x000000 });
@@ -131,7 +132,7 @@ function createPiano() {
       const x =
         START_X + currentWhiteIndex * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
       const rect = new PIXI.Graphics();
-      rect.roundRect(0, 0, BLACK_KEY_WIDTH, KEY_HEIGHT * 0.6, 3);
+      rect.roundRect(0, 0, BLACK_KEY_WIDTH, BLACK_KEY_HEIGHT, 3);
       rect.fill(0xffffff);
       rect.tint = COLOR_BLACK_KEY;
       rect.stroke({ width: 1, color: 0x555555 });
@@ -147,7 +148,7 @@ function createPiano() {
       rect.on("pointerleave", () => releaseKey(index));
 
       const hitWidth = WHITE_KEY_WIDTH * 0.9;
-      const hitHeight = KEY_HEIGHT * 0.6;
+      const hitHeight = BLACK_KEY_HEIGHT;
       const hitX = (BLACK_KEY_WIDTH - hitWidth) / 2;
       rect.hitArea = new PIXI.Rectangle(hitX, 0, hitWidth, hitHeight);
 
