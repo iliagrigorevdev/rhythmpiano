@@ -1,8 +1,23 @@
-# 🎹 Rhythm Piano Melodies
+# 🎹 Rhythm Piano
 
-A collection of distinct melodies for the [Rhythm Piano](https://iliagrigorevdev.github.io/rhythmpiano/) web application. Click the titles or the "Play" buttons below to load the specific melody and BPM settings directly.
+A web-based rhythm game and piano visualizer built with **Pixi.js** and the **Web Audio API**.
 
-## Track List
+Play along to pre-programmed melodies using a falling-note interface (synthesia style), or play the piano freely. The application parses melodies directly from URL parameters, allowing for easy sharing of songs without backend storage.
+
+[**🚀 Launch Live Application**](https://iliagrigorevdev.github.io/rhythmpiano/)
+
+## ✨ Features
+
+- **Rhythm Game Mode**: Hit the keys when the falling notes reach the red judgment line.
+- **Free Play**: Full 2-octave interactive piano when no melody is loaded.
+- **Sample-Based Audio**: Uses realistic SFZ piano samples (Salamander Grand Piano) with dynamic pitch shifting for high performance.
+- **URL-Based Level Sharing**: Melodies, BPM, and scroll speed are encoded entirely in the URL.
+- **Responsive Design**: Scales to fit desktop and mobile screens.
+- **Touch Support**: Optimized for touch screens with multi-touch capability.
+
+## 🎵 Featured Tracks
+
+Click below to load the melody directly:
 
 - [**▶️ Sigma Boy**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=120&melody=_G_G_G_dB2B_dA2AB_A2z2_G_G_G_dBBB_dAAAB_A2z2)
 
@@ -10,10 +25,72 @@ A collection of distinct melodies for the [Rhythm Piano](https://iliagrigorevdev
 
 - [**▶️ Gravity Falls Theme**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=320&melody=FDA.DFDA.DFCA.CFCA.CE_DA._DE_DA._DE_DA._DE2A2D6E2F8A3G3A2C8D6E2F4E4G4A4G4F4z2F2F2F2A2A2G2F2z2A2A2A2G2A2G2F2z2F2F2F2A2A2G2F2z2A2A2A2z2_d2_d2_d2z2F2F2F2A2A2G2F2z2_B2_B2_B2G4c4A4E4FDFAE_DAdd8)
 
+## 🛠️ Configuration & Custom Melodies
+
+You can create your own levels by modifying the URL parameters.
+
+### URL Parameters
+
+| Parameter | Description                                   | Default |
+| :-------- | :-------------------------------------------- | :------ |
+| `bpm`     | Beats per minute (Controls note spawn rate).  | `100`   |
+| `speed`   | Falling speed of notes in pixels per frame.   | `4`     |
+| `melody`  | The encoded note sequence (see syntax below). | `""`    |
+
+### Melody Syntax
+
+The app uses a simplified ABC-style notation parser (`src/parser.js`):
+
+- **Notes**: `C`, `D`, `E`, `F`, `G`, `A`, `B`.
+- **Octaves**:
+  - `C` is C4 (Middle C).
+  - `c` (lowercase) is C5 (One octave up).
+  - Add `.` to lower an octave (e.g., `C.` = C3).
+- **Accidentals**:
+  - `_` for Flat (e.g., `_B` is Bb).
+- **Duration**: Numbers after the note define length relative to the beat.
+  - `C2` = C for 2 beats.
+- **Rests**: Use `z` for silence (e.g., `z2` is a 2-beat rest).
+
+**Example:**
+`?bpm=120&melody=C2E2G2c4` (Major arpeggio)
+
+## 💻 Local Development
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/iliagrigorevdev/rhythmpiano.git
+   cd rhythmpiano
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Run the development server**
+
+   ```bash
+   npm run dev
+   ```
+
+4. **Build for production**
+   ```bash
+   npm run build
+   ```
+
+## 🧰 Tech Stack
+
+- **[Vite](https://vitejs.dev/)**: Frontend tooling and bundler.
+- **[Pixi.js (v8)](https://pixijs.com/)**: High-performance 2D WebGL rendering for the game loop and UI.
+- **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)**: Custom engine that loads SFZ regions, decodes buffers, and handles pitch shifting for notes that lack specific samples.
+
 ## Credits
 
 - **Audio Samples**: [Salamander Grand Piano V3](https://archive.org/details/SalamanderGrandPianoV3) by Alexander Holm, licensed under Creative Commons Attribution 3.0.
 
 ## License
 
-This project is licensed under the GPL-3.0 licence - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPL-3.0 license - see the [LICENSE](LICENSE) file for details.
