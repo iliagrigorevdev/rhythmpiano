@@ -1,7 +1,13 @@
 import "./style.css";
 import * as PIXI from "pixi.js";
 import { parseABC } from "./parser";
-import { playTone, resumeAudio } from "./audio";
+import {
+  initAudio,
+  cacheAllNoteSounds,
+  playNote,
+  stopNote,
+  generateNoteRange,
+} from "./audio";
 
 // --- CONFIGURATION ---
 const WIDTH = 1000;
@@ -17,52 +23,22 @@ const COLOR_WHITE_KEY = 0xf0f0f0; // Off-white/Light Gray
 const COLOR_BLACK_KEY = 0x202020; // Not pure black
 
 // --- ABC MELODY DEFINITION ---
-// Notation: C,D,E = Octave 4 | c,d,e = Octave 5 | ^ = Sharp | Number = Duration multiplier
-
-// 1. Logic to grab melody from URL Parameter (?melody=...)
 const getMelody = () => {
   const urlMelody = urlParams.get("melody");
-
   if (urlMelody) {
     console.log("Custom melody loaded from URL");
     return decodeURIComponent(urlMelody);
   }
-
-  // Return empty string for Free Mode (No sequencer, just piano)
   return "";
 };
 
 const MELODY_ABC = getMelody();
 
-// Notes definition
-const NOTES_DATA = [
-  { id: "F3", freq: 174.61, type: "white" },
-  { id: "F#3", freq: 185.0, type: "black" },
-  { id: "G3", freq: 196.0, type: "white" },
-  { id: "G#3", freq: 207.65, type: "black" },
-  { id: "A3", freq: 220.0, type: "white" },
-  { id: "A#3", freq: 233.08, type: "black" },
-  { id: "B3", freq: 246.94, type: "white" },
-
-  { id: "C4", freq: 261.63, type: "white" },
-  { id: "C#4", freq: 277.18, type: "black" },
-  { id: "D4", freq: 293.66, type: "white" },
-  { id: "D#4", freq: 311.13, type: "black" },
-  { id: "E4", freq: 329.63, type: "white" },
-  { id: "F4", freq: 349.23, type: "white" },
-  { id: "F#4", freq: 369.99, type: "black" },
-  { id: "G4", freq: 392.0, type: "white" },
-  { id: "G#4", freq: 415.3, type: "black" },
-  { id: "A4", freq: 440.0, type: "white" },
-  { id: "A#4", freq: 466.16, type: "black" },
-  { id: "B4", freq: 493.88, type: "white" },
-
-  { id: "C5", freq: 523.25, type: "white" },
-  { id: "C#5", freq: 554.37, type: "black" },
-  { id: "D5", freq: 587.33, type: "white" },
-  { id: "D#5", freq: 622.25, type: "black" },
-  { id: "E5", freq: 659.25, type: "white" },
-];
+// Notes definition - generated dynamically
+const NOTES_DATA = Object.values(generateNoteRange("F3", "E5")).map((note) => ({
+  id: note,
+  type: note.includes("#") ? "black" : "white",
+}));
 
 // --- DYNAMIC DIMENSIONS ---
 const TOTAL_WHITE_KEYS = NOTES_DATA.filter((n) => n.type === "white").length;
@@ -84,6 +60,7 @@ const activeNotes = [];
 // UI Elements
 let startText;
 let resultText;
+let loadingText;
 
 // Sequencer State
 let parsedMelody = [];
@@ -91,7 +68,7 @@ let melodyIndex = 0;
 let timeSinceLastNote = 0;
 let timeUntilNextNote = 0; // frames
 let isGameActive = false;
-let isSongFinished = false; // Flag to prevent multi-triggering end game
+let isSongFinished = false;
 
 // Scoring State
 let notesHit = 0;
@@ -116,16 +93,19 @@ function createPiano() {
       const rect = new PIXI.Graphics();
       rect.roundRect(0, 0, WHITE_KEY_WIDTH, KEY_HEIGHT, 6);
 
-      // Use pure white for fill so Tinting works correctly
       rect.fill(0xffffff);
       rect.stroke({ width: 2, color: 0x000000 });
       rect.x = x;
       rect.y = yPos;
       rect.eventMode = "static";
       rect.cursor = "pointer";
-      rect.on("pointerdown", () => triggerKey(index));
 
-      // Tint setup: Off-white
+      // Bind events
+      rect.on("pointerdown", () => pressKey(index));
+      rect.on("pointerup", () => releaseKey(index));
+      rect.on("pointerupoutside", () => releaseKey(index));
+      rect.on("pointerleave", () => releaseKey(index));
+
       rect.tint = COLOR_WHITE_KEY;
 
       keysContainer.addChild(rect);
@@ -136,6 +116,7 @@ function createPiano() {
         y: yPos,
         width: WHITE_KEY_WIDTH,
         data: note,
+        audioNode: null, // Store reference to playing sound
       };
       whiteKeyIndex++;
     }
@@ -151,23 +132,20 @@ function createPiano() {
         START_X + currentWhiteIndex * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
       const rect = new PIXI.Graphics();
       rect.roundRect(0, 0, BLACK_KEY_WIDTH, KEY_HEIGHT * 0.6, 3);
-
-      // Fill with WHITE so PIXI.tint works
       rect.fill(0xffffff);
-
-      // Set visual color to Charcoal via tint
       rect.tint = COLOR_BLACK_KEY;
-
       rect.stroke({ width: 1, color: 0x555555 });
       rect.x = x;
       rect.y = yPos;
       rect.eventMode = "static";
       rect.cursor = "pointer";
-      rect.on("pointerdown", () => triggerKey(index));
 
-      // Define a hit area wider than the visual key
-      // and centered relative to the visual drawing.
-      // x is negative to extend to the left of the drawing origin.
+      // Bind events
+      rect.on("pointerdown", () => pressKey(index));
+      rect.on("pointerup", () => releaseKey(index));
+      rect.on("pointerupoutside", () => releaseKey(index));
+      rect.on("pointerleave", () => releaseKey(index));
+
       const hitWidth = WHITE_KEY_WIDTH * 0.9;
       const hitHeight = KEY_HEIGHT * 0.6;
       const hitX = (BLACK_KEY_WIDTH - hitWidth) / 2;
@@ -181,6 +159,7 @@ function createPiano() {
         y: yPos,
         width: BLACK_KEY_WIDTH,
         data: note,
+        audioNode: null,
       };
     }
   });
@@ -193,11 +172,17 @@ function createUI() {
     fill: 0xffffff,
     align: "center",
     fontWeight: "bold",
-    stroke: { color: 0x000000, width: 4 }, // Added stroke for readability
+    stroke: { color: 0x000000, width: 4 },
   };
 
+  // Loading Text
+  loadingText = new PIXI.Text({ text: "Loading Sounds...", style });
+  loadingText.x = WIDTH / 2;
+  loadingText.y = HEIGHT / 2;
+  loadingText.anchor.set(0.5);
+  uiContainer.addChild(loadingText);
+
   // Start Text
-  // Update text based on mode
   const textContent =
     parsedMelody.length > 0 ? "Tap to Start" : "Tap for Free Play";
   startText = new PIXI.Text({ text: textContent, style });
@@ -206,6 +191,7 @@ function createUI() {
   startText.anchor.set(0.5);
   startText.eventMode = "static";
   startText.cursor = "pointer";
+  startText.visible = false; // Hidden until loaded
   startText.on("pointerdown", () => {
     resetGame();
   });
@@ -229,7 +215,6 @@ function createUI() {
 
 // --- GAME LOGIC ---
 function resetGame() {
-  // Reset Variables
   melodyIndex = 0;
   timeSinceLastNote = 0;
   timeUntilNextNote = 0;
@@ -237,20 +222,15 @@ function resetGame() {
   totalSpawned = 0;
   isSongFinished = false;
 
-  // Clear existing notes
   for (const note of activeNotes) {
     notesContainer.removeChild(note);
   }
   activeNotes.length = 0;
 
-  // Toggle UI
   startText.visible = false;
   resultText.visible = false;
 
-  // Audio context resume
-  resumeAudio();
-
-  // Start Loop
+  initAudio();
   isGameActive = true;
 }
 
@@ -274,14 +254,13 @@ function spawnNote(noteData) {
   const note = new PIXI.Graphics();
   const color = targetKey.data.type === "white" ? 0x00ffff : 0xff00ff;
 
-  // Visual width of the note matches the visual width of the key
   const width = targetKey.width - 4;
 
   note.roundRect(-width / 2, 0, width, 40, 4);
   note.fill(color);
 
   note.x = targetKey.x;
-  note.y = -100; // Start off screen
+  note.y = -100;
   note.targetIndex = index;
   note.active = true;
   note.id = noteData.id;
@@ -290,47 +269,59 @@ function spawnNote(noteData) {
   activeNotes.push(note);
 }
 
-function triggerKey(index) {
+function pressKey(index) {
   // If game isn't active, first tap starts it
-  if (!isGameActive && !resultText.visible) {
+  if (!isGameActive && !resultText.visible && !loadingText.visible) {
     resetGame();
     return;
   }
 
-  if (!isGameActive) return;
-
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
 
-  // Visual feedback
+  // Visual feedback (Press down)
   keyObj.graphic.tint = 0xffa500;
-  setTimeout(() => {
-    keyObj.graphic.tint = keyObj.originalColor;
-  }, 150);
 
-  // Play audio
-  playTone(keyObj.data.freq);
+  // Stop previous sound if any (re-triggering)
+  if (keyObj.audioNode) {
+    stopNote(keyObj.audioNode);
+  }
 
-  // Hit detection (Visual effect only, no scoring)
+  // Play audio (Sample)
+  keyObj.audioNode = playNote(keyObj.data.id);
+
+  if (!isGameActive) return;
+
+  // Hit detection
   const hitLineY = keyObj.y;
-  const hitZone = 60; // How far below the line is valid
+  const hitZone = 60;
 
   for (let i = activeNotes.length - 1; i >= 0; i--) {
     const n = activeNotes[i];
     if (n.targetIndex === index && n.active) {
       const dist = Math.abs(n.y - hitLineY);
       if (dist < hitZone) {
-        // Success Hit
         showHitEffect(keyObj.x, hitLineY);
-
-        // --- SCORE UPDATE ---
         notesHit++;
-
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
-        break; // Only hit one note per tap
+        break;
       }
     }
+  }
+}
+
+function releaseKey(index) {
+  const keyObj = pianoKeys[index];
+  if (!keyObj) return;
+
+  // Revert visual
+  keyObj.graphic.tint = keyObj.originalColor;
+
+  // Stop audio (Release)
+  if (keyObj.audioNode) {
+    stopNote(keyObj.audioNode, 1.0);
+    keyObj.audioNode = null;
   }
 }
 
@@ -369,45 +360,43 @@ async function initGame() {
   document.body.appendChild(app.canvas);
 
   app.stage.addChild(gameContainer);
-  // Important: Notes are added BEFORE Keys, so they render BEHIND keys.
   gameContainer.addChild(notesContainer);
   gameContainer.addChild(keysContainer);
   gameContainer.addChild(uiContainer);
 
-  // Parse Melody using the imported function
   parsedMelody = parseABC(MELODY_ABC);
 
   createPiano();
   createUI();
 
-  // Calculate frames per beat
-  const framesPerBeat = (60 / BPM) * 60;
-
-  // Resize Logic
+  // Setup Resize Listener (Call immediately to ensure correct initial size)
   const resize = () => {
-    // Pixi v8 "resizeTo" automatically updates app.screen.width/height
     const screenWidth = app.screen.width;
     const screenHeight = app.screen.height;
 
-    // Safety check to prevent 0 scale
     if (screenWidth === 0 || screenHeight === 0) return;
 
     const scale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
     gameContainer.scale.set(scale);
 
-    // Center the container
     gameContainer.x = (screenWidth - WIDTH * scale) / 2;
     gameContainer.y = (screenHeight - HEIGHT * scale) / 2;
   };
 
-  // Important: Listen to app.renderer 'resize', not window 'resize'.
-  // This ensures Pixi has finished updating the canvas size before we scale the container.
   app.renderer.on("resize", resize);
-
-  // Call once manually to set initial position
   resize();
 
-  // Game Loop
+  // Load Sounds
+  // initAudio() is intentionally not called here to avoid blocking execution
+  // waiting for user gesture (Autoplay Policy). It is called on first interaction.
+  await cacheAllNoteSounds();
+
+  // Ready to play
+  loadingText.visible = false;
+  startText.visible = true;
+
+  const framesPerBeat = (60 / BPM) * 60;
+
   app.ticker.add((ticker) => {
     if (!isGameActive) return;
 
@@ -415,28 +404,22 @@ async function initGame() {
     if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
       timeSinceLastNote += ticker.deltaTime;
 
-      // If we are waiting for the next note
       if (timeSinceLastNote >= timeUntilNextNote) {
         const noteData = parsedMelody[melodyIndex];
 
-        // Spawn the note (unless it's a rest)
         if (noteData.id !== null) {
           spawnNote(noteData);
-          // --- COUNT TOTAL NOTES ---
           totalSpawned++;
         }
 
-        // Set wait time for the *next* note based on *current* note's duration
         timeUntilNextNote = noteData.duration * framesPerBeat;
         timeSinceLastNote = 0;
 
         melodyIndex++;
       }
     } else if (parsedMelody.length > 0 && melodyIndex >= parsedMelody.length) {
-      // --- MELODY END LOGIC ---
       if (!isSongFinished) {
         isSongFinished = true;
-        // Wait 3 seconds for last notes to fall, then show score
         setTimeout(() => {
           showResults();
         }, 3000);
@@ -447,17 +430,10 @@ async function initGame() {
     for (let i = activeNotes.length - 1; i >= 0; i--) {
       const n = activeNotes[i];
       n.y += SPEED * ticker.deltaTime;
-
       const targetKey = pianoKeys[n.targetIndex];
-
-      // "Miss" Threshold Calculation:
-      // The Hit Line is at targetKey.y.
-      // The valid Hit Zone is approx 20px below that.
-      // Once the note passes targetKey.y + 20, it is unhittable and "hidden" behind the key.
       const missThreshold = targetKey.y + 20;
 
       if (n.y > missThreshold) {
-        // Remove note
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
       }

@@ -1,0 +1,8 @@
+<region> sample=samples/Fs3v10.ogg lokey=53 hikey=55 pitch_keycenter=54
+<region> sample=samples/A3v10.ogg lokey=56 hikey=58 pitch_keycenter=57
+<region> sample=samples/C4v10.ogg lokey=59 hikey=61 pitch_keycenter=60
+<region> sample=samples/Ds4v10.ogg lokey=62 hikey=64 pitch_keycenter=63
+<region> sample=samples/Fs4v10.ogg lokey=65 hikey=67 pitch_keycenter=66
+<region> sample=samples/A4v10.ogg lokey=68 hikey=70 pitch_keycenter=69
+<region> sample=samples/C5v10.ogg lokey=71 hikey=73 pitch_keycenter=72
+<region> sample=samples/Ds5v10.ogg lokey=74 hikey=76 pitch_keycenter=75
