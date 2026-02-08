@@ -364,8 +364,6 @@ async function initGame() {
 
   // Prevent default browser gestures (Long press, Zoom, Pan) on the canvas
   // This specifically stops the Android "context menu" vibration.
-  // Note: PIXI uses Pointer Events, so blocking 'touchstart' prevents
-  // browser emulation but still allows PIXI to function.
   const preventDefault = (e) => e.preventDefault();
   canvas.addEventListener("touchstart", preventDefault, { passive: false });
   canvas.addEventListener("touchmove", preventDefault, { passive: false });
@@ -389,11 +387,30 @@ async function initGame() {
 
     if (screenWidth === 0 || screenHeight === 0) return;
 
-    const scale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
+    // Check if device is in portrait mode
+    const isPortrait = screenHeight > screenWidth;
+
+    let scale;
+
+    if (isPortrait) {
+      // In portrait, we fit the Game Width (1000) into Screen Height
+      // and Game Height (400) into Screen Width
+      scale = Math.min(screenHeight / WIDTH, screenWidth / HEIGHT);
+      gameContainer.rotation = Math.PI / 2; // Rotate 90 degrees
+    } else {
+      // Standard landscape behavior
+      scale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
+      gameContainer.rotation = 0;
+    }
+
     gameContainer.scale.set(scale);
 
-    gameContainer.x = (screenWidth - WIDTH * scale) / 2;
-    gameContainer.y = (screenHeight - HEIGHT * scale) / 2;
+    // Set Pivot to center of the logical game
+    gameContainer.pivot.set(WIDTH / 2, HEIGHT / 2);
+
+    // Position container at center of screen
+    gameContainer.x = screenWidth / 2;
+    gameContainer.y = screenHeight / 2;
   };
 
   app.renderer.on("resize", resize);
