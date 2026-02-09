@@ -20,11 +20,13 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 
 Click below to load the melody directly:
 
-- [**▶️ Sigma Boy**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=125&melody=_G_G_G_dB2B_dA2AB_A2z2_G_G_G_dBBB_dAAAB_A2z2)
+- [**▶️ Gravity Falls Theme**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=160&melody=FDA.DFDA.DFCA.CFCA.CE_DA._DE_DA._DE_DA._DE2A2D6E2F8A3G3A2C8D6E2F4E4G4A4G4F4z2F2F2F2A2A2G2F2z2A2A2A2G2A2G2F2z2F2F2F2A2A2G2F2z2A2A2A2z2_d2_d2_d2z2F2F2F2A2A2G2F2z2_B2_B2_B2G4c4A4E4FDFAE_DAdd8)
 
 - [**▶️ How It's Done (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=150&melody=DDD2F2FED2D2_B2z2_B2_B2d2dc_B2A2D2z2DDD2F2FED2D2_B2_BAG2F2z2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2A2A2D2_B2_B_B2zA2z2A2A2D2_B2_B_B2zA2z2AAA2D2_B2_B_B2zA2z2A2A2A2A2_E_EC2_E2D2)
 
-- [**▶️ Gravity Falls Theme**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=160&melody=FDA.DFDA.DFCA.CFCA.CE_DA._DE_DA._DE_DA._DE2A2D6E2F8A3G3A2C8D6E2F4E4G4A4G4F4z2F2F2F2A2A2G2F2z2A2A2A2G2A2G2F2z2F2F2F2A2A2G2F2z2A2A2A2z2_d2_d2_d2z2F2F2F2A2A2G2F2z2_B2_B2_B2G4c4A4E4FDFAE_DAdd8)
+- [**▶️ Takedown (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=280&melody=B2_A2B2_A2B2_A2B2_A2_d4_A12e2_e2_d2B2_A2_G2E2_G2_A3A_A8E2_G2_A3A_A4z2_A2B2_A2_d4_A8z2_A2e2_e2_d2B2_A2_G2E2_G2_A3A_A8E2_G2_A3A_A8z4_A_A3_A4_d2_G2_G2_G2_D4_A4_d4_A4A4A2_G2_A4_A4_D4_A4_d4_A4A4A2B2_A4_G_G3_D4_A4_d4_A4A4A2_G2_A4_A4_D4_A4_d4_A4A4A2B2_A8_D16)
+
+- [**▶️ Sigma Boy**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=125&melody=_G_G_G_dB2B_dA2AB_A2z2_G_G_G_dBBB_dAAAB_A2z2)
 
 ## 🛠️ Configuration & Custom Melodies
 
