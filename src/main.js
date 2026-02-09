@@ -17,6 +17,12 @@ const urlParams = new URLSearchParams(window.location.search);
 const BPM = parseInt(urlParams.get("bpm")) || 100;
 const SPEED = parseInt(urlParams.get("speed")) || 4; // Pixels per frame
 
+// Calculate frames per beat globally for visual spacing calculations
+// BPM = Beats per minute. 60 FPS assumed.
+// Duration 1 in parser = 1/8th note.
+// Standard beat (quarter note) = 2 units of duration.
+const FRAMES_PER_BEAT = ((60 / BPM) * 60) / 2;
+
 // --- COLORS ---
 const COLOR_WHITE_KEY = 0xf0f0f0; // Off-white/Light Gray
 const COLOR_BLACK_KEY = 0x202020; // Not pure black
@@ -321,7 +327,35 @@ function spawnNote(noteData) {
 
   const width = targetKey.width - 4;
 
-  note.roundRect(-width / 2, 0, width, 40, 4);
+  // Visual Gap Logic:
+  // We want a fixed 40px height note.
+  // However, if the NEXT note is coming too soon (close), we need to create a visual gap.
+  // The 'Next' note physically spawns ABOVE this one (since notes fall down).
+  // Therefore, the collision point is the TOP of THIS note vs the BOTTOM of the NEXT note.
+  // To make a gap, we shave height off the TOP of THIS note.
+
+  const distToNext = noteData.duration * FRAMES_PER_BEAT * SPEED;
+  const GAP = 5;
+  const NOTE_HEIGHT = 40;
+
+  let topOffset = 0;
+
+  // Logic: We need at least (NOTE_HEIGHT + GAP) space.
+  // 'distToNext' is the physical distance between the start (anchor) of this note and the next.
+  const requiredClearance = NOTE_HEIGHT + GAP;
+
+  if (distToNext < requiredClearance) {
+    // If distance is too small, we start drawing lower (offset from top)
+    topOffset = requiredClearance - distToNext;
+  }
+
+  // Ensure we don't erase the whole note. Min height 5px.
+  topOffset = Math.min(topOffset, NOTE_HEIGHT - 5);
+
+  const finalHeight = NOTE_HEIGHT - topOffset;
+
+  // Draw rectangle with offset on the Y-axis (top)
+  note.roundRect(-width / 2, topOffset, width, finalHeight, 4);
   note.fill(color);
 
   note.x = targetKey.x;
@@ -490,11 +524,6 @@ async function initGame() {
   loadingText.visible = false;
   startText.visible = true;
 
-  // BPM is typically beats (Quarter notes) per minute.
-  // The melody is specified in Eighth notes (duration 1 = 1/8th).
-  // Therefore, we divide the frames per quarter note by 2.
-  const framesPerBeat = ((60 / BPM) * 60) / 2;
-
   app.ticker.add((ticker) => {
     if (!isGameActive) return;
 
@@ -510,7 +539,8 @@ async function initGame() {
           totalSpawned++;
         }
 
-        timeUntilNextNote = noteData.duration * framesPerBeat;
+        // Use global FRAMES_PER_BEAT
+        timeUntilNextNote = noteData.duration * FRAMES_PER_BEAT;
         timeSinceLastNote = 0;
 
         melodyIndex++;
