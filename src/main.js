@@ -34,6 +34,7 @@ const getMelody = () => {
 const MELODY_ABC = getMelody();
 
 // Notes definition - generated dynamically
+// Range F3 (index 0) to E5 (index 23)
 const NOTES_DATA = Object.values(generateNoteRange("F3", "E5")).map((note) => ({
   id: note,
   type: note.includes("#") ? "black" : "white",
@@ -47,6 +48,42 @@ const WHITE_KEY_WIDTH = AVAILABLE_WIDTH / TOTAL_WHITE_KEYS;
 const BLACK_KEY_WIDTH = WHITE_KEY_WIDTH * 0.65;
 const WHITE_KEY_HEIGHT = 160;
 const BLACK_KEY_HEIGHT = WHITE_KEY_HEIGHT * 0.55;
+
+// --- KEYBOARD MAPPING ---
+// Maps computer keyboard keys to the index in NOTES_DATA/pianoKeys
+const KEY_TO_NOTE_INDEX = {
+  // F3 Group
+  // F3-G3 (Indices 0-2) are not mapped to keyboard
+  q: 3, // G#3
+
+  // A3 Group
+  a: 4, // A3
+  w: 5, // A#3
+  s: 6, // B3
+
+  // C4 Group
+  d: 7, // C4
+  r: 8, // C#4
+  f: 9, // D4
+  t: 10, // D#4
+  g: 11, // E4
+
+  // F4 Group
+  h: 12, // F4
+  u: 13, // F#4
+  j: 14, // G4
+  i: 15, // G#4
+  k: 16, // A4
+  o: 17, // A#4
+  l: 18, // B4
+
+  // C5 Group
+  ";": 19, // C5
+  "[": 20, // C#5
+  "'": 21, // D5
+  "]": 22, // D#5
+  "\\": 23, // E5
+};
 
 // --- SETUP PIXI & STATE ---
 const app = new PIXI.Application();
@@ -214,6 +251,33 @@ function createUI() {
   uiContainer.addChild(resultText);
 }
 
+function setupKeyboardListeners() {
+  window.addEventListener("keydown", (e) => {
+    if (e.repeat) return; // Prevent machine-gun effect if key is held
+    const key = e.key.toLowerCase();
+
+    if (KEY_TO_NOTE_INDEX.hasOwnProperty(key)) {
+      // Prevent browser default for mapped keys (e.g. Quick Find on ',')
+      e.preventDefault();
+      const index = KEY_TO_NOTE_INDEX[key];
+      // Check if index is valid
+      if (pianoKeys[index]) {
+        pressKey(index);
+      }
+    }
+  });
+
+  window.addEventListener("keyup", (e) => {
+    const key = e.key.toLowerCase();
+    if (KEY_TO_NOTE_INDEX.hasOwnProperty(key)) {
+      const index = KEY_TO_NOTE_INDEX[key];
+      if (pianoKeys[index]) {
+        releaseKey(index);
+      }
+    }
+  });
+}
+
 // --- GAME LOGIC ---
 function resetGame() {
   melodyIndex = 0;
@@ -379,6 +443,7 @@ async function initGame() {
 
   createPiano();
   createUI();
+  setupKeyboardListeners();
 
   // Setup Resize Listener
   const resize = () => {

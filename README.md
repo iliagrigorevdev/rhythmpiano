@@ -10,6 +10,7 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 
 - **Rhythm Game Mode**: Hit the keys when the falling notes reach the red judgment line.
 - **Free Play**: Full 2-octave interactive piano when no melody is loaded.
+- **PC Keyboard Support**: Play using your computer keyboard with a standard DAW-style layout (e.g., `A`, `S`, `D` for white keys; `W`, `E` for black keys).
 - **Sample-Based Audio**: Uses realistic SFZ piano samples (Salamander Grand Piano) with dynamic pitch shifting for high performance.
 - **URL-Based Level Sharing**: Melodies, BPM, and scroll speed are encoded entirely in the URL.
 - **Responsive Design**: Scales to fit desktop and mobile screens.
