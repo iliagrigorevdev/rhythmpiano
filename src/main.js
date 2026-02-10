@@ -581,11 +581,12 @@ async function initGame() {
         melodyIndex++;
       }
     } else if (parsedMelody.length > 0 && melodyIndex >= parsedMelody.length) {
-      if (!isSongFinished) {
+      // Only finish if the sequencer is empty AND no notes are left on screen
+      if (activeNotes.length === 0 && !isSongFinished) {
         isSongFinished = true;
         setTimeout(() => {
           resetToMenu();
-        }, 3000);
+        }, 1500);
       }
     }
 
