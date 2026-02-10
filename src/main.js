@@ -376,31 +376,59 @@ function pressKey(index) {
   // Hit detection
   const hitLineY = keyObj.y;
 
-  let closestNoteIndex = -1;
-  let minDistance = Infinity;
+  // 1. Find the ABSOLUTE closest distance among ALL active notes (any column)
+  let minGlobalDistance = Infinity;
 
-  // Iterate through all notes to find the best candidate
-  for (let i = 0; i < activeNotes.length; i++) {
-    const n = activeNotes[i];
-
-    // Check if note matches key and is active
-    if (n.targetIndex === index && n.active) {
+  for (const n of activeNotes) {
+    if (n.active) {
       const dist = Math.abs(n.y - hitLineY);
-
-      // Check if inside Hit Zone AND is the closest found so far
-      if (dist < HIT_ZONE && dist < minDistance) {
-        minDistance = dist;
-        closestNoteIndex = i;
+      if (dist < minGlobalDistance) {
+        minGlobalDistance = dist;
       }
     }
   }
 
-  // If a valid closest note was found, remove it
-  if (closestNoteIndex !== -1) {
-    const noteToRemove = activeNotes[closestNoteIndex];
+  // If the closest note on screen is outside the hit zone, we can't hit anything.
+  if (minGlobalDistance > HIT_ZONE) return;
+
+  // 2. Find if the pressed key has a note that matches this global timing
+  // We allow a small tolerance (e.g., 10px) to handle chords where multiple notes
+  // are basically at the same distance.
+  const CHORD_TOLERANCE = 10;
+
+  let noteToHitIndex = -1;
+  let minColDistance = Infinity;
+
+  for (let i = 0; i < activeNotes.length; i++) {
+    const n = activeNotes[i];
+
+    // Check if note is in the pressed column
+    if (n.targetIndex === index && n.active) {
+      const dist = Math.abs(n.y - hitLineY);
+
+      // It must be within the Hit Zone
+      if (dist < HIT_ZONE) {
+        // CRITICAL CHECK:
+        // The note in this column must be roughly as close as the closest note on the ENTIRE screen.
+        // If Global Closest is 5px away (Note B), and this note is 100px away (Note A),
+        // 100 <= 5 + 10 is False. We do not hit Note A.
+        if (dist <= minGlobalDistance + CHORD_TOLERANCE) {
+          // Standard closest-in-column check
+          if (dist < minColDistance) {
+            minColDistance = dist;
+            noteToHitIndex = i;
+          }
+        }
+      }
+    }
+  }
+
+  // If a valid note was found that matches the global timing context
+  if (noteToHitIndex !== -1) {
+    const noteToRemove = activeNotes[noteToHitIndex];
     showHitEffect(keyObj.x, hitLineY);
     notesContainer.removeChild(noteToRemove);
-    activeNotes.splice(closestNoteIndex, 1);
+    activeNotes.splice(noteToHitIndex, 1);
   }
 }
 
