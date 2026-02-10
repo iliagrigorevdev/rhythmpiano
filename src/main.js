@@ -17,6 +17,10 @@ const urlParams = new URLSearchParams(window.location.search);
 const BPM = parseInt(urlParams.get("bpm")) || 100;
 const SPEED = parseInt(urlParams.get("speed")) || 4; // Pixels per frame
 
+// Feature Flag: Wait for Input
+// Default: true. If set to false (?wait=false), notes will fall past the line without stopping.
+const WAIT_MODE = urlParams.get("wait") !== "false";
+
 // Calculate frames per beat globally for visual spacing calculations
 // BPM = Beats per minute. 60 FPS assumed.
 // Duration 1 in parser = 1/8th note.
@@ -112,6 +116,15 @@ let timeSinceLastNote = 0;
 let timeUntilNextNote = 0; // frames
 let isGameActive = false;
 let isSongFinished = false;
+
+// Input Wait State
+let isWaitingForInput = false;
+
+// Constants
+const NOTE_HEIGHT = 40;
+const NOTE_GAP = 5;
+const NOTE_CLEARANCE = NOTE_HEIGHT + NOTE_GAP;
+const HIT_ZONE = 2 * NOTE_HEIGHT;
 
 // --- PIANO GENERATION ---
 function createPiano() {
@@ -271,6 +284,7 @@ function resetGame() {
   timeSinceLastNote = 0;
   timeUntilNextNote = 0;
   isSongFinished = false;
+  isWaitingForInput = false;
 
   for (const note of activeNotes) {
     notesContainer.removeChild(note);
@@ -307,18 +321,14 @@ function spawnNote(noteData) {
   // To make a gap, we shave height off the TOP of THIS note.
 
   const distToNext = noteData.duration * FRAMES_PER_BEAT * SPEED;
-  const GAP = 5;
-  const NOTE_HEIGHT = 40;
 
   let topOffset = 0;
 
-  // Logic: We need at least (NOTE_HEIGHT + GAP) space.
+  // Logic: We need at least (NOTE_HEIGHT + NOTE_GAP) space.
   // 'distToNext' is the physical distance between the start (anchor) of this note and the next.
-  const requiredClearance = NOTE_HEIGHT + GAP;
-
-  if (distToNext < requiredClearance) {
+  if (distToNext < NOTE_CLEARANCE) {
     // If distance is too small, we start drawing lower (offset from top)
-    topOffset = requiredClearance - distToNext;
+    topOffset = NOTE_CLEARANCE - distToNext;
   }
 
   // Ensure we don't erase the whole note. Min height 5px.
@@ -365,13 +375,12 @@ function pressKey(index) {
 
   // Hit detection
   const hitLineY = keyObj.y;
-  const hitZone = 60;
 
   for (let i = activeNotes.length - 1; i >= 0; i--) {
     const n = activeNotes[i];
     if (n.targetIndex === index && n.active) {
       const dist = Math.abs(n.y - hitLineY);
-      if (dist < hitZone) {
+      if (dist < HIT_ZONE) {
         showHitEffect(keyObj.x, hitLineY);
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
@@ -497,6 +506,36 @@ async function initGame() {
 
   app.ticker.add((ticker) => {
     if (!isGameActive) return;
+
+    // --- PAUSE LOGIC (Conditional) ---
+    // If WAIT_MODE is true (default), we pause if a note hits the line.
+    if (WAIT_MODE) {
+      // Check if ANY active note has reached the judgment line.
+      // If so, set state to waiting (paused) and clamp the note.
+      const hitLineY = pianoKeys[0].y;
+      // We want the note to stop ABOVE the line.
+      // The note graphic extends downwards by NOTE_HEIGHT from its anchor (n.y).
+      // So we block when the bottom of the note (n.y + NOTE_HEIGHT) reaches hitLineY.
+      const blockThreshold = hitLineY - NOTE_HEIGHT;
+
+      let currentlyBlocked = false;
+
+      for (const n of activeNotes) {
+        if (n.y >= blockThreshold) {
+          n.y = blockThreshold; // Freeze so it sits visually on top of the line
+          currentlyBlocked = true;
+        }
+      }
+
+      isWaitingForInput = currentlyBlocked;
+
+      // If waiting for input, we skip melody sequencing and note movement.
+      if (isWaitingForInput) {
+        return;
+      }
+    }
+
+    // --- NORMAL GAME LOOP ---
 
     // 1. Melody Sequencer
     if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
