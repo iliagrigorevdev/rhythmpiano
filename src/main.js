@@ -507,31 +507,43 @@ async function initGame() {
   app.ticker.add((ticker) => {
     if (!isGameActive) return;
 
-    // --- PAUSE LOGIC (Conditional) ---
-    // If WAIT_MODE is true (default), we pause if a note hits the line.
-    if (WAIT_MODE) {
-      // Check if ANY active note has reached the judgment line.
-      // If so, set state to waiting (paused) and clamp the note.
+    // --- PAUSE LOGIC (Time Manipulation) ---
+    // If WAIT_MODE is true, we calculate an 'effectiveDelta'.
+    // We look for the note closest to the judgment line.
+    // We limit the delta time so that note cannot pass the line.
+    // Since this delta is applied to EVERYTHING (sequencer + physics),
+    // everything stops synchronously.
+
+    let effectiveDelta = ticker.deltaTime;
+
+    if (WAIT_MODE && activeNotes.length > 0) {
       const hitLineY = pianoKeys[0].y;
-      // We want the note to stop ABOVE the line.
-      // The note graphic extends downwards by NOTE_HEIGHT from its anchor (n.y).
-      // So we block when the bottom of the note (n.y + NOTE_HEIGHT) reaches hitLineY.
-      const blockThreshold = hitLineY - NOTE_HEIGHT;
+      // We want the bottom of the note (y + NOTE_HEIGHT) to stop at hitLineY
+      const stopY = hitLineY - NOTE_HEIGHT;
 
-      let currentlyBlocked = false;
+      let minDistance = Infinity;
 
+      // Find the note closest to the stopping point
       for (const n of activeNotes) {
-        if (n.y >= blockThreshold) {
-          n.y = blockThreshold; // Freeze so it sits visually on top of the line
-          currentlyBlocked = true;
+        const dist = stopY - n.y;
+        // We track the smallest distance (closest to line)
+        if (dist < minDistance) {
+          minDistance = dist;
         }
       }
 
-      isWaitingForInput = currentlyBlocked;
+      // If minDistance is negative, a note is technically slightly past due to float precision,
+      // clamp to 0 to ensure full stop.
+      if (minDistance < 0) minDistance = 0;
 
-      // If waiting for input, we skip melody sequencing and note movement.
-      if (isWaitingForInput) {
-        return;
+      // Convert physical distance to time (frames)
+      // distance = speed * time  =>  time = distance / speed
+      const maxAllowedDelta = minDistance / SPEED;
+
+      // If the time required to hit the line is LESS than the current frame time,
+      // use that smaller time. This slows down/stops the game exactly at the line.
+      if (maxAllowedDelta < effectiveDelta) {
+        effectiveDelta = maxAllowedDelta;
       }
     }
 
@@ -539,7 +551,7 @@ async function initGame() {
 
     // 1. Melody Sequencer
     if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
-      timeSinceLastNote += ticker.deltaTime;
+      timeSinceLastNote += effectiveDelta;
 
       if (timeSinceLastNote >= timeUntilNextNote) {
         const noteData = parsedMelody[melodyIndex];
@@ -566,7 +578,8 @@ async function initGame() {
     // 2. Physics (Falling Notes)
     for (let i = activeNotes.length - 1; i >= 0; i--) {
       const n = activeNotes[i];
-      n.y += SPEED * ticker.deltaTime;
+      n.y += SPEED * effectiveDelta;
+
       const targetKey = pianoKeys[n.targetIndex];
       const missThreshold = targetKey.y + 20;
 
