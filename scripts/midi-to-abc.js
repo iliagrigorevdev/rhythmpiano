@@ -27,14 +27,23 @@ try {
 
   const ppq = midi.header.ppq;
 
-  // Sort notes by time just in case
-  track.notes.sort((a, b) => a.ticks - b.ticks);
+  // Sort notes by time, then by pitch descending (highest first)
+  // This ensures that when we filter for the "leading" note of a chord, we pick the melody note.
+  track.notes.sort((a, b) => {
+    if (a.ticks === b.ticks) return b.midi - a.midi;
+    return a.ticks - b.ticks;
+  });
 
   // 1. Collect all events (Notes and Rests) with raw durations
   const events = [];
   let lastTick = 0;
+  let lastNoteStart = -1; // Track start tick of last processed note to detect chords
 
   track.notes.forEach((note) => {
+    // Skip notes that start at the same time as the last processed note (handle chords)
+    if (note.ticks === lastNoteStart) return;
+    lastNoteStart = note.ticks;
+
     // A. Handle Rests (Time gaps)
     const gapTicks = note.ticks - lastTick;
     if (gapTicks > 0) {
