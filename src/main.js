@@ -376,17 +376,31 @@ function pressKey(index) {
   // Hit detection
   const hitLineY = keyObj.y;
 
-  for (let i = activeNotes.length - 1; i >= 0; i--) {
+  let closestNoteIndex = -1;
+  let minDistance = Infinity;
+
+  // Iterate through all notes to find the best candidate
+  for (let i = 0; i < activeNotes.length; i++) {
     const n = activeNotes[i];
+
+    // Check if note matches key and is active
     if (n.targetIndex === index && n.active) {
       const dist = Math.abs(n.y - hitLineY);
-      if (dist < HIT_ZONE) {
-        showHitEffect(keyObj.x, hitLineY);
-        notesContainer.removeChild(n);
-        activeNotes.splice(i, 1);
-        break;
+
+      // Check if inside Hit Zone AND is the closest found so far
+      if (dist < HIT_ZONE && dist < minDistance) {
+        minDistance = dist;
+        closestNoteIndex = i;
       }
     }
+  }
+
+  // If a valid closest note was found, remove it
+  if (closestNoteIndex !== -1) {
+    const noteToRemove = activeNotes[closestNoteIndex];
+    showHitEffect(keyObj.x, hitLineY);
+    notesContainer.removeChild(noteToRemove);
+    activeNotes.splice(closestNoteIndex, 1);
   }
 }
 
