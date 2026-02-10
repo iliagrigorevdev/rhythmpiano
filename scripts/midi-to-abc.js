@@ -89,6 +89,8 @@ try {
 
   // 4. Generate ABC String using the multiplier
   let abcString = "";
+  const MIN_MIDI = 53; // F3
+  const MAX_MIDI = 76; // E5
 
   events.forEach((event) => {
     // Scale and strictly round to integer
@@ -100,14 +102,19 @@ try {
     if (event.type === "rest") {
       abcString += `z${formatIntegerDuration(finalDuration)}`;
     } else {
-      // Filter range: F3 (53) to E5 (76)
-      if (event.midi >= 53 && event.midi <= 76) {
-        const noteString = getABCNoteName(event.midi);
-        abcString += `${noteString}${formatIntegerDuration(finalDuration)}`;
-      } else {
-        // Outside of range -> Replace with pause
-        abcString += `z${formatIntegerDuration(finalDuration)}`;
+      let currentMidi = event.midi;
+
+      // Shift octave up if too low
+      while (currentMidi < MIN_MIDI) {
+        currentMidi += 12;
       }
+      // Shift octave down if too high
+      while (currentMidi > MAX_MIDI) {
+        currentMidi -= 12;
+      }
+
+      const noteString = getABCNoteName(currentMidi);
+      abcString += `${noteString}${formatIntegerDuration(finalDuration)}`;
     }
   });
 
