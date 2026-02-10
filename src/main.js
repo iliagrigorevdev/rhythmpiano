@@ -103,7 +103,6 @@ const activeNotes = [];
 
 // UI Elements
 let startText;
-let resultText;
 let loadingText;
 
 // Sequencer State
@@ -113,10 +112,6 @@ let timeSinceLastNote = 0;
 let timeUntilNextNote = 0; // frames
 let isGameActive = false;
 let isSongFinished = false;
-
-// Scoring State
-let notesHit = 0;
-let totalSpawned = 0;
 
 // --- PIANO GENERATION ---
 function createPiano() {
@@ -222,7 +217,7 @@ function createUI() {
   // Loading Text
   loadingText = new PIXI.Text({ text: "Loading Sounds...", style });
   loadingText.x = WIDTH / 2;
-  loadingText.y = HEIGHT / 2;
+  loadingText.y = HEIGHT / 2 - 50;
   loadingText.anchor.set(0.5);
   uiContainer.addChild(loadingText);
 
@@ -241,20 +236,6 @@ function createUI() {
   });
 
   uiContainer.addChild(startText);
-
-  // Result Text
-  resultText = new PIXI.Text({ text: "", style });
-  resultText.x = WIDTH / 2;
-  resultText.y = HEIGHT / 2 - 100;
-  resultText.anchor.set(0.5);
-  resultText.visible = false;
-  resultText.eventMode = "static";
-  resultText.cursor = "pointer";
-  resultText.on("pointerdown", () => {
-    resetGame();
-  });
-
-  uiContainer.addChild(resultText);
 }
 
 function setupKeyboardListeners() {
@@ -289,8 +270,6 @@ function resetGame() {
   melodyIndex = 0;
   timeSinceLastNote = 0;
   timeUntilNextNote = 0;
-  notesHit = 0;
-  totalSpawned = 0;
   isSongFinished = false;
 
   for (const note of activeNotes) {
@@ -299,22 +278,15 @@ function resetGame() {
   activeNotes.length = 0;
 
   startText.visible = false;
-  resultText.visible = false;
 
   initAudio();
   isGameActive = true;
 }
 
-function showResults() {
+function resetToMenu() {
   isGameActive = false;
-
-  let percentage = 0;
-  if (totalSpawned > 0) {
-    percentage = Math.round((notesHit / totalSpawned) * 100);
-  }
-
-  resultText.text = `Melody Finished!\nScore: ${percentage}%\n\nTap to Restart`;
-  resultText.visible = true;
+  startText.text = "Tap to Start";
+  startText.visible = true;
 }
 
 function spawnNote(noteData) {
@@ -370,7 +342,7 @@ function spawnNote(noteData) {
 
 function pressKey(index) {
   // If game isn't active, first tap starts it
-  if (!isGameActive && !resultText.visible && !loadingText.visible) {
+  if (!isGameActive && !loadingText.visible) {
     resetGame();
     return;
   }
@@ -401,7 +373,6 @@ function pressKey(index) {
       const dist = Math.abs(n.y - hitLineY);
       if (dist < hitZone) {
         showHitEffect(keyObj.x, hitLineY);
-        notesHit++;
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
         break;
@@ -536,7 +507,6 @@ async function initGame() {
 
         if (noteData.id !== null) {
           spawnNote(noteData);
-          totalSpawned++;
         }
 
         // Use global FRAMES_PER_BEAT
@@ -549,7 +519,7 @@ async function initGame() {
       if (!isSongFinished) {
         isSongFinished = true;
         setTimeout(() => {
-          showResults();
+          resetToMenu();
         }, 3000);
       }
     }
