@@ -1,6 +1,7 @@
 import "./style.css";
 import * as PIXI from "pixi.js";
 import { parseABC } from "./parser";
+import { convertMidiToUrlData } from "./convert";
 import {
   initAudio,
   cacheAllNoteSounds,
@@ -108,6 +109,7 @@ const activeNotes = [];
 // UI Elements
 let startText;
 let loadingText;
+let uploadButton;
 
 // Sequencer State
 let parsedMelody = [];
@@ -125,6 +127,41 @@ const NOTE_HEIGHT = 40;
 const NOTE_GAP = 5;
 const NOTE_CLEARANCE = NOTE_HEIGHT + NOTE_GAP;
 const HIT_ZONE = 2 * NOTE_HEIGHT;
+
+// --- FILE UPLOAD LOGIC ---
+const fileInput = document.createElement("input");
+fileInput.type = "file";
+fileInput.accept = ".mid,.midi";
+fileInput.style.display = "none";
+document.body.appendChild(fileInput);
+
+fileInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (uploadButton) {
+    uploadButton.visible = false;
+  }
+  loadingText.text = "Parsing MIDI...";
+  loadingText.visible = true;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const { bpm, melody } = await convertMidiToUrlData(arrayBuffer);
+
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("bpm", bpm);
+    newUrl.searchParams.set("melody", melody);
+    window.location.href = newUrl.toString();
+  } catch (err) {
+    console.error(err);
+    alert(
+      "Failed to parse MIDI file. Make sure it has notes in the first track.",
+    );
+    loadingText.visible = false;
+    startText.visible = true;
+  }
+});
 
 // --- PIANO GENERATION ---
 function createPiano() {
@@ -151,14 +188,13 @@ function createPiano() {
       rect.y = yPos;
       rect.eventMode = "static";
       rect.cursor = "pointer";
+      rect.tint = COLOR_WHITE_KEY;
 
       // Bind events
       rect.on("pointerdown", () => pressKey(index));
       rect.on("pointerup", () => releaseKey(index));
       rect.on("pointerupoutside", () => releaseKey(index));
       rect.on("pointerleave", () => releaseKey(index));
-
-      rect.tint = COLOR_WHITE_KEY;
 
       keysContainer.addChild(rect);
       pianoKeys[index] = {
@@ -249,6 +285,54 @@ function createUI() {
   });
 
   uiContainer.addChild(startText);
+
+  // --- Upload Button (Container) ---
+  uploadButton = new PIXI.Container();
+  uploadButton.x = WIDTH / 2;
+  uploadButton.y = HEIGHT / 2 - 50;
+  uploadButton.visible = false;
+  uploadButton.eventMode = "static";
+  uploadButton.cursor = "pointer";
+
+  // 1. Text Object
+  const btnStyle = {
+    ...style,
+    fontSize: 24,
+    fill: 0xffffff,
+    stroke: { color: 0x000000, width: 2 },
+  };
+  const btnText = new PIXI.Text({
+    text: "📂 Open MIDI File",
+    style: btnStyle,
+  });
+  btnText.anchor.set(0.5);
+
+  // 2. Background Object (Based on text size)
+  const bg = new PIXI.Graphics();
+  const paddingX = 40;
+  const paddingY = 20;
+  bg.roundRect(
+    -btnText.width / 2 - paddingX / 2,
+    -btnText.height / 2 - paddingY / 2,
+    btnText.width + paddingX,
+    btnText.height + paddingY,
+    10,
+  );
+  bg.fill({ color: 0x000000, alpha: 0.8 });
+  bg.stroke({ width: 2, color: 0xffffff });
+
+  // 3. Add to Container (Order matters: Background first, then Text)
+  uploadButton.addChild(bg);
+  uploadButton.addChild(btnText);
+
+  // 4. Events
+  uploadButton.on("pointerdown", (e) => {
+    e.stopPropagation();
+    fileInput.click();
+    resetToMenu();
+  });
+
+  uiContainer.addChild(uploadButton);
 }
 
 function setupKeyboardListeners() {
@@ -292,6 +376,7 @@ function resetGame() {
   activeNotes.length = 0;
 
   startText.visible = false;
+  uploadButton.visible = false;
 
   initAudio();
   isGameActive = true;
@@ -301,6 +386,7 @@ function resetToMenu() {
   isGameActive = false;
   startText.text = "Tap to Start";
   startText.visible = true;
+  uploadButton.visible = false;
 }
 
 function spawnNote(noteData) {
@@ -351,8 +437,7 @@ function spawnNote(noteData) {
 }
 
 function pressKey(index) {
-  // If game isn't active, first tap starts it
-  if (!isGameActive && !loadingText.visible) {
+  if (!isGameActive && !loadingText.visible && !uploadButton.visible) {
     resetGame();
     return;
   }
@@ -482,13 +567,56 @@ async function initGame() {
   const canvas = app.canvas;
   document.body.appendChild(canvas);
 
-  // Prevent default browser gestures (Long press, Zoom, Pan) on the canvas
-  // This specifically stops the Android "context menu" vibration.
+  // --- Long Press Logic ---
+  let longPressTimer = null;
+  let startX = 0;
+  let startY = 0;
+  const LONG_PRESS_DURATION = 800; // ms
+  const MOVE_THRESHOLD = 20; // px
+
+  const cancelLongPress = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  };
+
+  const handlePointerDown = (e) => {
+    if (!e.isPrimary) return;
+    startX = e.clientX;
+    startY = e.clientY;
+    cancelLongPress();
+
+    longPressTimer = setTimeout(() => {
+      // Show upload button only if we are in menu state
+      if (!isGameActive) {
+        uploadButton.visible = true;
+        startText.visible = false;
+        uiContainer.zIndex = 100;
+      }
+      longPressTimer = null;
+    }, LONG_PRESS_DURATION);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!longPressTimer) return;
+    const dx = Math.abs(e.clientX - startX);
+    const dy = Math.abs(e.clientY - startY);
+    if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+      cancelLongPress();
+    }
+  };
+
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+  canvas.addEventListener("pointerdown", handlePointerDown);
+  canvas.addEventListener("pointerup", cancelLongPress);
+  canvas.addEventListener("pointercancel", cancelLongPress);
+  canvas.addEventListener("pointermove", handlePointerMove);
+
   const preventDefault = (e) => e.preventDefault();
   canvas.addEventListener("touchstart", preventDefault, { passive: false });
   canvas.addEventListener("touchmove", preventDefault, { passive: false });
   canvas.addEventListener("touchend", preventDefault, { passive: false });
-  canvas.addEventListener("contextmenu", preventDefault, { passive: false });
 
   app.stage.addChild(gameContainer);
   gameContainer.addChild(notesContainer);

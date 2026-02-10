@@ -5,8 +5,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "prettier --write .",
-    "midi": "node scripts/midi-to-abc.js"
+    "format": "prettier --write ."
   },
   "devDependencies": {
     "prettier": "^3.8.1",
