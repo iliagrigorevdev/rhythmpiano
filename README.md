@@ -32,14 +32,13 @@ You can load your own `.mid` files to create levels automatically.
 
 You can manually configure levels by modifying the URL.
 
-| Parameter   | Description                                                    | Default |
-| :---------- | :------------------------------------------------------------- | :------ |
-| `bpm`       | Beats per minute.                                              | `100`   |
-| `speed`     | Falling speed of notes in pixels per frame.                    | `4`     |
-| `wait`      | `true` pauses game if note is missed. `false` lets notes pass. | `true`  |
-| `demo`      | `true` enables an auto-play demo before the game.              | `false` |
-| `melody`    | The encoded note sequence.                                     | `""`    |
-| `transpose` | Shift MIDI import pitch by semitones (e.g. `12` or `-12`).     | `0`     |
+| Parameter | Description                                                    | Default |
+| :-------- | :------------------------------------------------------------- | :------ |
+| `bpm`     | Beats per minute.                                              | `100`   |
+| `speed`   | Falling speed of notes in pixels per frame.                    | `4`     |
+| `wait`    | `true` pauses game if note is missed. `false` lets notes pass. | `true`  |
+| `demo`    | `true` enables an auto-play demo before the game.              | `false` |
+| `melody`  | The encoded note sequence.                                     | `""`    |
 
 ### Melody Syntax
 
