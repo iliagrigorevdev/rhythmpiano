@@ -729,28 +729,37 @@ async function initGame() {
     }
 
     // 2. Physics (Falling Notes)
+    let closestNote = null;
+    let closestDist = Infinity;
+    const hitLineY = pianoKeys[0].y; // Judgment line Y position
+
     for (let i = activeNotes.length - 1; i >= 0; i--) {
       const n = activeNotes[i];
       n.y += SPEED * effectiveDelta;
 
-      const targetKey = pianoKeys[n.targetIndex];
+      // Reset to original color by default
+      n.tint = n.originalColor;
 
-      // --- VISUAL READY CUE ---
-      // Check if note is within hitting distance.
-      // If so, change color to indicate it is ready to be pressed.
-      const dist = Math.abs(n.y - targetKey.y);
-      if (dist < HIT_ZONE) {
-        n.tint = COLOR_NOTE_READY;
-      } else {
-        n.tint = n.originalColor;
-      }
+      const missThreshold = hitLineY + 20;
 
-      const missThreshold = targetKey.y + 20;
-
+      // Remove missed notes
       if (n.y > missThreshold) {
         notesContainer.removeChild(n);
         activeNotes.splice(i, 1);
+        continue; // Skip distance check for removed note
       }
+
+      // Calculate distance to find the single closest note
+      const dist = Math.abs(n.y - hitLineY);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestNote = n;
+      }
+    }
+
+    // Apply highlight only to the nearest note if it is within the HIT_ZONE
+    if (closestNote && closestDist < HIT_ZONE) {
+      closestNote.tint = COLOR_NOTE_READY;
     }
   });
 }
