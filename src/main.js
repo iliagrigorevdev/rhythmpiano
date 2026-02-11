@@ -42,8 +42,6 @@ const getMelody = () => {
   return "";
 };
 
-const MELODY_ABC = getMelody();
-
 // Notes definition - generated dynamically
 // Range F3 (index 0) to E5 (index 23)
 const NOTES_DATA = Object.values(generateNoteRange("F3", "E5")).map((note) => ({
@@ -109,7 +107,8 @@ const activeNotes = [];
 // UI Elements
 let playButton;
 let loadingText;
-let uploadButton;
+let openButton;
+let shareButton;
 
 // Sequencer State
 let parsedMelody = [];
@@ -129,7 +128,7 @@ const NOTE_CLEARANCE = NOTE_HEIGHT + NOTE_GAP;
 const HIT_ZONE = 2 * NOTE_HEIGHT;
 const COLOR_NOTE_READY = 0xffff00; // Yellow when ready to hit
 
-// --- FILE UPLOAD LOGIC ---
+// --- FILE OPEN LOGIC ---
 const fileInput = document.createElement("input");
 fileInput.type = "file";
 fileInput.accept = ".mid,.midi";
@@ -140,8 +139,8 @@ fileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  if (uploadButton) {
-    uploadButton.visible = false;
+  if (openButton) {
+    openButton.visible = false;
   }
   loadingText.text = "Parsing MIDI...";
   loadingText.visible = true;
@@ -319,44 +318,91 @@ function createUI() {
 
   uiContainer.addChild(playButton);
 
-  // --- Upload Button (Container) ---
-  uploadButton = new PIXI.Container();
-  uploadButton.x = WIDTH / 2;
-  uploadButton.y = HEIGHT / 2 - 100;
-  uploadButton.visible = false;
-  uploadButton.eventMode = "static";
-  uploadButton.cursor = "pointer";
+  // --- Open Button (Container) ---
+  openButton = new PIXI.Container();
+  openButton.x = WIDTH / 2;
+  openButton.y = HEIGHT / 2 - 100;
+  openButton.visible = false;
+  openButton.eventMode = "static";
+  openButton.cursor = "pointer";
 
   // 1. Text Object
-  const uploadBtnText = new PIXI.Text({
+  const openBtnText = new PIXI.Text({
     text: "📂 Open MIDI File",
     style: btnStyle,
   });
-  uploadBtnText.anchor.set(0.5);
+  openBtnText.anchor.set(0.5);
 
   // 2. Background Object (Based on text size)
-  const uploadBg = new PIXI.Graphics();
-  uploadBg.roundRect(
-    -uploadBtnText.width / 2 - paddingX / 2,
-    -uploadBtnText.height / 2 - paddingY / 2,
-    uploadBtnText.width + paddingX,
-    uploadBtnText.height + paddingY,
+  const openBg = new PIXI.Graphics();
+  openBg.roundRect(
+    -openBtnText.width / 2 - paddingX / 2,
+    -openBtnText.height / 2 - paddingY / 2,
+    openBtnText.width + paddingX,
+    openBtnText.height + paddingY,
     10,
   );
-  uploadBg.fill({ color: 0x000000, alpha: 0.8 });
-  uploadBg.stroke({ width: 2, color: 0xffffff });
+  openBg.fill({ color: 0x000000, alpha: 0.8 });
+  openBg.stroke({ width: 2, color: 0xffffff });
 
   // 3. Add to Container (Order matters: Background first, then Text)
-  uploadButton.addChild(uploadBg);
-  uploadButton.addChild(uploadBtnText);
+  openButton.addChild(openBg);
+  openButton.addChild(openBtnText);
 
   // 4. Events
-  uploadButton.on("pointerdown", (e) => {
+  openButton.on("pointerdown", (e) => {
     e.stopPropagation();
     fileInput.click();
   });
 
-  uiContainer.addChild(uploadButton);
+  uiContainer.addChild(openButton);
+
+  // --- Share Button ---
+  shareButton = new PIXI.Container();
+  shareButton.x = WIDTH / 2;
+  shareButton.y = HEIGHT / 2 - 30;
+  shareButton.visible = false;
+  shareButton.eventMode = "static";
+  shareButton.cursor = "pointer";
+
+  const shareText = new PIXI.Text({
+    text: "🔗",
+    style: { ...btnStyle, fontSize: 30 },
+  });
+  shareText.anchor.set(0.5);
+
+  const shareBg = new PIXI.Graphics();
+  shareBg.roundRect(-25, -25, 50, 50, 10);
+  shareBg.fill({ color: 0x000000, alpha: 0.8 });
+  shareBg.stroke({ width: 2, color: 0xffffff });
+
+  shareButton.addChild(shareBg);
+  shareButton.addChild(shareText);
+
+  shareButton.on("pointerdown", async () => {
+    let url = window.location.href;
+    url = url.replace(/%7E/g, "~");
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Piano Melody",
+          text: "Check out this melody!",
+          url: url,
+        });
+      } catch (err) {
+        // Share cancelled
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        alert("URL copied to clipboard!");
+      } catch (err) {
+        console.error("Failed to copy URL", err);
+      }
+    }
+  });
+
+  uiContainer.addChild(shareButton);
 }
 
 function setupKeyboardListeners() {
@@ -400,7 +446,8 @@ function resetGame() {
   activeNotes.length = 0;
 
   playButton.visible = false;
-  uploadButton.visible = false;
+  openButton.visible = false;
+  shareButton.visible = false;
 
   initAudio();
   isGameActive = true;
@@ -409,6 +456,7 @@ function resetGame() {
 function resetToMenu() {
   isGameActive = false;
   playButton.visible = true;
+  shareButton.visible = true;
 }
 
 function spawnNote(noteData) {
@@ -463,7 +511,8 @@ function spawnNote(noteData) {
 }
 
 function pressKey(index) {
-  if (!isGameActive && !loadingText.visible && !uploadButton.visible) {
+  if (!isGameActive && !loadingText.visible && !openButton.visible) {
+    resetGame();
     return;
   }
 
@@ -604,7 +653,7 @@ async function initGame() {
   gameContainer.addChild(keysContainer);
   gameContainer.addChild(uiContainer);
 
-  parsedMelody = parseABC(MELODY_ABC);
+  parsedMelody = parseABC(getMelody());
 
   createPiano();
   createUI();
@@ -654,7 +703,8 @@ async function initGame() {
   // Ready to play
   loadingText.visible = false;
   playButton.visible = parsedMelody.length > 0;
-  uploadButton.visible = !playButton.visible;
+  shareButton.visible = playButton.visible;
+  openButton.visible = !playButton.visible;
 
   app.ticker.add((ticker) => {
     if (!isGameActive) return;
