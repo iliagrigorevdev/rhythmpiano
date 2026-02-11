@@ -127,6 +127,7 @@ const NOTE_HEIGHT = 40;
 const NOTE_GAP = 5;
 const NOTE_CLEARANCE = NOTE_HEIGHT + NOTE_GAP;
 const HIT_ZONE = 2 * NOTE_HEIGHT;
+const COLOR_NOTE_READY = 0xffff00; // Yellow when ready to hit
 
 // --- FILE UPLOAD LOGIC ---
 const fileInput = document.createElement("input");
@@ -424,13 +425,17 @@ function spawnNote(noteData) {
 
   // Draw rectangle with offset on the Y-axis (top)
   note.roundRect(-width / 2, topOffset, width, finalHeight, 4);
-  note.fill(color);
+
+  // We fill with WHITE so we can use tinting efficiently for color changes
+  note.fill(0xffffff);
+  note.tint = color;
 
   note.x = targetKey.x;
   note.y = -100;
   note.targetIndex = index;
   note.active = true;
   note.id = noteData.id;
+  note.originalColor = color; // Store original color to revert if needed
 
   notesContainer.addChild(note);
   activeNotes.push(note);
@@ -752,6 +757,17 @@ async function initGame() {
       n.y += SPEED * effectiveDelta;
 
       const targetKey = pianoKeys[n.targetIndex];
+
+      // --- VISUAL READY CUE ---
+      // Check if note is within hitting distance.
+      // If so, change color to indicate it is ready to be pressed.
+      const dist = Math.abs(n.y - targetKey.y);
+      if (dist < HIT_ZONE) {
+        n.tint = COLOR_NOTE_READY;
+      } else {
+        n.tint = n.originalColor;
+      }
+
       const missThreshold = targetKey.y + 20;
 
       if (n.y > missThreshold) {
