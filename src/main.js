@@ -1,7 +1,7 @@
 import "./style.css";
 import * as PIXI from "pixi.js";
 import { parseABC } from "./parser";
-import { convertMidiToUrlData } from "./convert";
+import { convertMidiToUrlData } from "./converter";
 import {
   initAudio,
   cacheAllNoteSounds,

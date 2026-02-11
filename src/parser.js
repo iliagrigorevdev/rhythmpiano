@@ -5,6 +5,8 @@
 export function parseABC(abcString) {
   // Convert points to commas
   abcString = abcString.replace(/\./g, ",");
+  // Convert tildes to slashes (custom URL-friendly duration format)
+  abcString = abcString.replace(/~/g, "/");
 
   // 1. Clean string: remove bar lines |, whitespace, standardizing
   // Regex looks for: (accidental)(note)(octave)(duration)

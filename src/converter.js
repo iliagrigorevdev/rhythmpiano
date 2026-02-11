@@ -9,7 +9,7 @@ export async function convertMidiToUrlData(arrayBuffer) {
   const midi = new Midi(arrayBuffer);
 
   // Extract base BPM (Default to 120 if missing)
-  let bpm = Math.round(midi.header.tempos[0]?.bpm || 120);
+  const bpm = Math.round(midi.header.tempos[0]?.bpm || 120);
 
   // Process First Track Only
   const track = midi.tracks[0];
@@ -39,6 +39,7 @@ export async function convertMidiToUrlData(arrayBuffer) {
     const gapTicks = note.ticks - lastTick;
     if (gapTicks > 0) {
       const gapDuration = (gapTicks / ppq) * 2;
+      // Filter tiny noise (threshold similar to quantization floor)
       if (gapDuration > 0.05 && events.length > 0) {
         events.push({ type: "rest", duration: gapDuration });
       }
@@ -55,35 +56,17 @@ export async function convertMidiToUrlData(arrayBuffer) {
     lastTick = note.ticks + note.durationTicks;
   });
 
-  // 2. Find best multiplier to make durations integers
-  let bestMultiplier = 4;
-  for (let m = 1; m <= 4; m++) {
-    const isClean = events.every((e) => {
-      const scaled = e.duration * m;
-      const rounded = Math.round(scaled);
-      return Math.abs(scaled - rounded) < 0.05;
-    });
-
-    if (isClean) {
-      bestMultiplier = m;
-      break;
-    }
-  }
-
-  // 3. Apply multiplier to BPM
-  bpm = bpm * bestMultiplier;
-
-  // 4. Generate ABC String
+  // 2. Generate ABC String (Fractional support)
   let abcString = "";
   const MIN_MIDI = 53; // F3
   const MAX_MIDI = 76; // E5
 
   events.forEach((event) => {
-    const finalDuration = Math.round(event.duration * bestMultiplier);
-    if (finalDuration === 0) return;
+    const durationString = formatAbcDuration(event.duration);
+    if (durationString === null) return;
 
     if (event.type === "rest") {
-      abcString += `z${formatIntegerDuration(finalDuration)}`;
+      abcString += `z${durationString}`;
     } else {
       let currentMidi = event.midi;
       // Shift octave to fit range
@@ -91,15 +74,38 @@ export async function convertMidiToUrlData(arrayBuffer) {
       while (currentMidi > MAX_MIDI) currentMidi -= 12;
 
       const noteString = getABCNoteName(currentMidi);
-      abcString += `${noteString}${formatIntegerDuration(finalDuration)}`;
+      abcString += `${noteString}${durationString}`;
     }
   });
 
   return { bpm, melody: abcString };
 }
 
-function formatIntegerDuration(val) {
-  return val === 1 ? "" : val.toString();
+/**
+ * Formats a numeric duration into an ABC notation string (integer or fraction).
+ * Assumes 1 unit = 1/8th note approx. Quantizes to nearest 1/4 unit (1/32nd).
+ */
+function formatAbcDuration(duration) {
+  // Quantize to nearest 0.25
+  const steps = Math.round(duration * 4);
+
+  if (steps === 0) return null;
+  if (steps === 4) return ""; // 1.0 (Unit length)
+
+  // Integer case
+  if (steps % 4 === 0) {
+    return (steps / 4).toString();
+  }
+
+  // Half case (x.5) -> n/2
+  if (steps % 2 === 0) {
+    const num = steps / 2;
+    return num === 1 ? "~" : `${num}~2`;
+  }
+
+  // Quarter case (x.25, x.75) -> n/4
+  const num = steps;
+  return num === 1 ? "~4" : `${num}~4`;
 }
 
 function getABCNoteName(midi) {
