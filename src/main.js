@@ -8,6 +8,7 @@ import {
   playNote,
   stopNote,
   generateNoteRange,
+  noteNameToMidi,
 } from "./audio";
 
 // --- CONFIGURATION ---
@@ -24,6 +25,25 @@ const WAIT_MODE = urlParams.get("wait") !== "false";
 
 // Feature Flag: Demo Mode
 const DEMO_MODE = urlParams.get("demo") === "true";
+
+// Feature Flag: Start Note (Range Control)
+// Default F3. Supported: C3, F3, C4
+const VALID_START_NOTES = ["C3", "F3", "C4"];
+let START_NOTE = (urlParams.get("start") || "F3").toUpperCase();
+
+// Fallback if user enters garbage in URL
+if (!VALID_START_NOTES.includes(START_NOTE)) {
+  START_NOTE = "F3";
+}
+
+// Calculate End Note (Exact 2 Octave Range)
+// F3 (53) -> E5 (76). C3->B4, etc.
+const RANGE_MAP = {
+  C3: "B4",
+  F3: "E5",
+  C4: "B5",
+};
+const END_NOTE = RANGE_MAP[START_NOTE] || "E5";
 
 // Calculate frames per beat globally for visual spacing calculations
 // BPM = Beats per minute. 60 FPS assumed.
@@ -45,12 +65,13 @@ const getMelody = () => {
   return "";
 };
 
-// Notes definition - generated dynamically
-// Range F3 (index 0) to E5 (index 23)
-const NOTES_DATA = Object.values(generateNoteRange("F3", "E5")).map((note) => ({
-  id: note,
-  type: note.includes("#") ? "black" : "white",
-}));
+// Notes definition - generated dynamically based on Start Note
+const NOTES_DATA = Object.values(generateNoteRange(START_NOTE, END_NOTE)).map(
+  (note) => ({
+    id: note,
+    type: note.includes("#") ? "black" : "white",
+  }),
+);
 
 // --- DYNAMIC DIMENSIONS ---
 const TOTAL_WHITE_KEYS = NOTES_DATA.filter((n) => n.type === "white").length;
@@ -63,38 +84,39 @@ const BLACK_KEY_HEIGHT = WHITE_KEY_HEIGHT * 0.55;
 
 // --- KEYBOARD MAPPING ---
 // Maps computer keyboard keys to the index in NOTES_DATA/pianoKeys
+// Note: This maps to the physical *index* on screen. If the range shifts (e.g. to C3),
+// key 'a' (index 4) will play E3 instead of A3. This is intended behavior for range shifting.
 const KEY_TO_NOTE_INDEX = {
-  // F3 Group
-  // F3-G3 (Indices 0-2) are not mapped to keyboard
-  q: 3, // G#3
+  // Group 1
+  q: 3,
 
-  // A3 Group
-  a: 4, // A3
-  w: 5, // A#3
-  s: 6, // B3
+  // Group 2
+  a: 4,
+  w: 5,
+  s: 6,
 
-  // C4 Group
-  d: 7, // C4
-  r: 8, // C#4
-  f: 9, // D4
-  t: 10, // D#4
-  g: 11, // E4
+  // Group 3
+  d: 7,
+  r: 8,
+  f: 9,
+  t: 10,
+  g: 11,
 
-  // F4 Group
-  h: 12, // F4
-  u: 13, // F#4
-  j: 14, // G4
-  i: 15, // G#4
-  k: 16, // A4
-  o: 17, // A#4
-  l: 18, // B4
+  // Group 4
+  h: 12,
+  u: 13,
+  j: 14,
+  i: 15,
+  k: 16,
+  o: 17,
+  l: 18,
 
-  // C5 Group
-  ";": 19, // C5
-  "[": 20, // C#5
-  "'": 21, // D5
-  "]": 22, // D#5
-  "\\": 23, // E5
+  // Group 5
+  ";": 19,
+  "[": 20,
+  "'": 21,
+  "]": 22,
+  "\\": 23,
 };
 
 // --- SETUP PIXI & STATE ---
@@ -151,7 +173,17 @@ fileInput.addEventListener("change", async (e) => {
 
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const { bpm, melody } = await convertMidiToUrlData(arrayBuffer);
+
+    // Calculate MIDI bounds for current range
+    const minMidi = noteNameToMidi(START_NOTE);
+    const maxMidi = noteNameToMidi(END_NOTE);
+
+    // Convert MIDI passing in specific range bounds
+    const { bpm, melody } = await convertMidiToUrlData(
+      arrayBuffer,
+      minMidi,
+      maxMidi,
+    );
 
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set("bpm", bpm);

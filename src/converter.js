@@ -3,9 +3,11 @@ import { Midi } from "@tonejs/midi";
 /**
  * Converts an ArrayBuffer (from a MIDI file) into a URL-friendly ABC string and BPM.
  * @param {ArrayBuffer} arrayBuffer
+ * @param {number} minMidi - Lowest MIDI note allowed (inclusive)
+ * @param {number} maxMidi - Highest MIDI note allowed (inclusive)
  * @returns {Promise<{bpm: number, melody: string}>}
  */
-export async function convertMidiToUrlData(arrayBuffer) {
+export async function convertMidiToUrlData(arrayBuffer, minMidi, maxMidi) {
   const midi = new Midi(arrayBuffer);
 
   // Extract base BPM (Default to 120 if missing)
@@ -58,8 +60,6 @@ export async function convertMidiToUrlData(arrayBuffer) {
 
   // 2. Generate ABC String (Fractional support)
   let abcString = "";
-  const MIN_MIDI = 53; // F3
-  const MAX_MIDI = 76; // E5
 
   events.forEach((event) => {
     const durationString = formatAbcDuration(event.duration);
@@ -69,9 +69,10 @@ export async function convertMidiToUrlData(arrayBuffer) {
       abcString += `z${durationString}`;
     } else {
       let currentMidi = event.midi;
+
       // Shift octave to fit range
-      while (currentMidi < MIN_MIDI) currentMidi += 12;
-      while (currentMidi > MAX_MIDI) currentMidi -= 12;
+      while (currentMidi < minMidi) currentMidi += 12;
+      while (currentMidi > maxMidi) currentMidi -= 12;
 
       const noteString = getABCNoteName(currentMidi);
       abcString += `${noteString}${durationString}`;

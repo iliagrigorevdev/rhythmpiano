@@ -207,4 +207,11 @@ function stopNote(gainNode, fadeOutDuration = 0.05) {
   }
 }
 
-export { initAudio, cacheAllNoteSounds, playNote, stopNote, generateNoteRange };
+export {
+  initAudio,
+  cacheAllNoteSounds,
+  playNote,
+  stopNote,
+  generateNoteRange,
+  noteNameToMidi,
+};

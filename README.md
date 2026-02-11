@@ -12,7 +12,7 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 - **▶️ Demo Mode**: Add `?demo=true` to the URL to watch the melody play automatically before you try it yourself.
 - **📂 MIDI File Import**: Convert local `.mid` files into playable levels instantly. The app parses the MIDI client-side and updates the URL.
 - **⏳ Wait Mode**: By default, the game pauses if a note reaches the line but hasn't been played, allowing you to learn the melody at your own pace.
-- **Free Play**: Full 2-octave interactive piano when no melody is loaded.
+- **Expanded & Configurable Piano Range**: The interactive piano now spans over 3 octaves (C3 to B5). Use the `start` URL parameter to select your starting note (`C3`, `F3`, or `C4`) and shift the two-octave playable area.
 - **PC Keyboard Support**: Play using your computer keyboard with a standard DAW-style layout (e.g., `A`, `S`, `D` for white keys; `W`, `E` for black keys).
 - **Sample-Based Audio**: Uses realistic SFZ piano samples (Salamander Grand Piano) with dynamic pitch shifting for high performance.
 - **URL-Based Level Sharing**: Melodies, BPM, and scroll speed are encoded entirely in the URL.
@@ -32,13 +32,14 @@ You can load your own `.mid` files to create levels automatically.
 
 You can manually configure levels by modifying the URL.
 
-| Parameter | Description                                                    | Default |
-| :-------- | :------------------------------------------------------------- | :------ |
-| `bpm`     | Beats per minute.                                              | `100`   |
-| `speed`   | Falling speed of notes in pixels per frame.                    | `4`     |
-| `wait`    | `true` pauses game if note is missed. `false` lets notes pass. | `true`  |
-| `demo`    | `true` enables an auto-play demo before the game.              | `false` |
-| `melody`  | The encoded note sequence.                                     | `""`    |
+| Parameter | Description                                                       | Default |
+| :-------- | :---------------------------------------------------------------- | :------ |
+| `bpm`     | Beats per minute.                                                 | `100`   |
+| `speed`   | Falling speed of notes in pixels per frame.                       | `4`     |
+| `wait`    | `true` pauses game if note is missed. `false` lets notes pass.    | `true`  |
+| `demo`    | `true` enables an auto-play demo before the game.                 | `false` |
+| `start`   | Starting note of the 2-octave range. Supported: `C3`, `F3`, `C4`. | `F3`    |
+| `melody`  | The encoded note sequence.                                        | `""`    |
 
 ### Melody Syntax
 
