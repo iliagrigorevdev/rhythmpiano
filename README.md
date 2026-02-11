@@ -2,19 +2,20 @@
 
 A web-based rhythm game and piano visualizer built with **Pixi.js** and the **Web Audio API**.
 
-Play along to pre-programmed melodies using a falling-note interface (synthesia style), or play the piano freely. The application parses melodies directly from URL parameters, allowing for easy sharing of songs without backend storage.
+Play along to pre-programmed melodies using a falling-note interface (synthesia style), play the piano freely, or import your own MIDI files. The application parses melodies directly from URL parameters, allowing for easy sharing of songs without backend storage.
 
 [**🚀 Launch Live Application**](https://iliagrigorevdev.github.io/rhythmpiano/)
 
 ## ✨ Features
 
 - **Rhythm Game Mode**: Hit the keys when the falling notes reach the red judgment line.
+- **📂 MIDI File Import**: Convert local `.mid` files into playable levels instantly. The app parses the MIDI client-side and updates the URL.
+- **⏳ Wait Mode**: By default, the game pauses if a note reaches the line but hasn't been played, allowing you to learn the melody at your own pace.
 - **Free Play**: Full 2-octave interactive piano when no melody is loaded.
 - **PC Keyboard Support**: Play using your computer keyboard with a standard DAW-style layout (e.g., `A`, `S`, `D` for white keys; `W`, `E` for black keys).
 - **Sample-Based Audio**: Uses realistic SFZ piano samples (Salamander Grand Piano) with dynamic pitch shifting for high performance.
 - **URL-Based Level Sharing**: Melodies, BPM, and scroll speed are encoded entirely in the URL.
 - **Responsive Design**: Scales to fit desktop and mobile screens.
-- **Touch Support**: Optimized for touch screens with multi-touch capability.
 
 ## 🎵 Featured Tracks
 
@@ -24,41 +25,44 @@ Click below to load the melody directly:
 
 - [**▶️ How It's Done (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=150&melody=DDD2F2FED2D2_B2z2_B2_B2d2dc_B2A2D2z2DDD2F2FED2D2_B2_BAG2F2z2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2A2A2D2_B2_B_B2zA2z2A2A2D2_B2_B_B2zA2z2AAA2D2_B2_B_B2zA2z2A2A2A2A2_E_EC2_E2D2)
 
-- [**▶️ Takedown (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=280&melody=B2_A2B2_A2B2_A2B2_A2_d4_A12e2_e2_d2B2_A2_G2E2_G2_A3A_A8E2_G2_A3A_A4z2_A2B2_A2_d4_A8z2_A2e2_e2_d2B2_A2_G2E2_G2_A3A_A8E2_G2_A3A_A8z4_A_A3_A4_d2_G2_G2_G2_D4_A4_d4_A4A4A2_G2_A4_A4_D4_A4_d4_A4A4A2B2_A4_G_G3_D4_A4_d4_A4A4A2_G2_A4_A4_D4_A4_d4_A4A4A2B2_A8_D16)
+- [**▶️ Takedown (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=140&melody=B_AB_AB_AB_A_d2_A6e_e_dB_A_GE_G_A3~2A~2_A4E_G_A3~2A~2_A2z_AB_A_d2_A4z_Ae_e_dB_A_GE_G_A3~2A~2_A4E_G_A3~2A~2_A4z2_A~2_A3~2_A2_d_G_G_G_D2_A2_d2_A2A2A_G_A2_A2_D2_A2_d2_A2A2AB_A2_G~2_G3~2_D2_A2_d2_A2A2A_G_A2_A2_D2_A2_d2_A2A2AB_A4_D8)
 
 - [**▶️ Sigma Boy**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=125&melody=_G_G_G_dB2B_dA2AB_A2z2_G_G_G_dBBB_dAAAB_A2z2)
 
-## 🛠️ Configuration & Custom Melodies
+## 🛠️ Usage & Configuration
 
-You can create your own levels by modifying the URL parameters.
+### Importing MIDI Files
+
+You can load your own `.mid` files to create levels automatically.
+
+1. Ensure you are on the Main Menu ("Tap to Start" screen).
+2. **Long-press (click and hold)** anywhere on the background for 1 second.
+3. Click the **"📂 Open MIDI File"** button that appears.
+4. Select a simple MIDI file (Track 1 is used for the melody).
 
 ### URL Parameters
 
-| Parameter | Description                                   | Default |
-| :-------- | :-------------------------------------------- | :------ |
-| `bpm`     | Beats per minute (Standard Quarter-note BPM). | `100`   |
-| `speed`   | Falling speed of notes in pixels per frame.   | `4`     |
-| `melody`  | The encoded note sequence (see syntax below). | `""`    |
+You can manually configure levels by modifying the URL.
+
+| Parameter | Description                                                    | Default |
+| :-------- | :------------------------------------------------------------- | :------ |
+| `bpm`     | Beats per minute.                                              | `100`   |
+| `speed`   | Falling speed of notes in pixels per frame.                    | `4`     |
+| `wait`    | `true` pauses game if note is missed. `false` lets notes pass. | `true`  |
+| `melody`  | The encoded note sequence.                                     | `""`    |
 
 ### Melody Syntax
 
-The app uses a simplified ABC-style notation parser (`src/parser.js`). The default note duration is treated as an **Eighth Note**.
+The app uses a custom parser (`src/parser.js`) that reads a simplified ABC-like notation.
 
 - **Notes**: `C`, `D`, `E`, `F`, `G`, `A`, `B`.
-- **Octaves**:
-  - `C` is C4 (Middle C).
-  - `c` (lowercase) is C5 (One octave up).
-  - Add `.` to lower an octave (e.g., `C.` = C3).
-- **Accidentals**:
-  - `_` for Flat (e.g., `_B` is Bb).
-- **Duration**: Numbers after the note define length relative to an **eighth note**.
-  - `C` (No number) = Eighth Note.
-  - `C2` = Quarter Note (2 eighths).
-  - `C4` = Half Note (4 eighths).
-- **Rests**: Use `z` for silence (e.g., `z2` is a Quarter Note rest).
+- **Accidentals**: `_` (Flat).
+- **Octaves**: `C` (C4/Middle C), `c` (C5), `C.` (C3).
+- **Duration**: Number relative to an 8th note. `~` allows fractions (e.g., `3~2`).
+- **Rests**: `z`.
 
 **Example:**
-`?bpm=120&melody=C2E2G2c4` (Major arpeggio: 3 quarter notes followed by a half note)
+`?bpm=120&melody=C2E2G2c4` (Major arpeggio)
 
 ## 💻 Local Development
 
@@ -89,8 +93,9 @@ The app uses a simplified ABC-style notation parser (`src/parser.js`). The defau
 ## 🧰 Tech Stack
 
 - **[Vite](https://vitejs.dev/)**: Frontend tooling and bundler.
-- **[Pixi.js (v8)](https://pixijs.com/)**: High-performance 2D WebGL rendering for the game loop and UI.
-- **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)**: Custom engine that loads SFZ regions, decodes buffers, and handles pitch shifting for notes that lack specific samples.
+- **[Pixi.js (v8)](https://pixijs.com/)**: High-performance 2D WebGL rendering.
+- **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)**: Custom audio engine with SFZ parsing and pitch shifting.
+- **[@tonejs/midi](https://github.com/Tonejs/Midi)**: MIDI file parsing and conversion.
 
 ## Credits
 
