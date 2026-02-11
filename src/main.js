@@ -22,6 +22,9 @@ const SPEED = parseInt(urlParams.get("speed")) || 4; // Pixels per frame
 // Default: true. If set to false (?wait=false), notes will fall past the line without stopping.
 const WAIT_MODE = urlParams.get("wait") !== "false";
 
+// Feature Flag: Demo Mode
+const DEMO_MODE = urlParams.get("demo") === "true";
+
 // Calculate frames per beat globally for visual spacing calculations
 // BPM = Beats per minute. 60 FPS assumed.
 // Duration 1 in parser = 1/8th note.
@@ -118,8 +121,9 @@ let timeUntilNextNote = 0; // frames
 let isGameActive = false;
 let isSongFinished = false;
 
-// Input Wait State
-let isWaitingForInput = false;
+// Game State
+let isDemoPlaying = false;
+let hasDemoPlayed = false;
 
 // Constants
 const NOTE_HEIGHT = 40;
@@ -290,7 +294,7 @@ function createUI() {
 
   // 1. Text Object
   const playBtnText = new PIXI.Text({
-    text: "▶ Play Melody",
+    text: "▶️  Play Melody",
     style: btnStyle,
   });
   playBtnText.anchor.set(0.5);
@@ -313,7 +317,11 @@ function createUI() {
 
   // 4. Events
   playButton.on("pointerdown", () => {
-    resetGame();
+    if (DEMO_MODE && !hasDemoPlayed) {
+      startDemo();
+    } else {
+      resetGame();
+    }
   });
 
   uiContainer.addChild(playButton);
@@ -438,7 +446,28 @@ function resetGame() {
   timeSinceLastNote = 0;
   timeUntilNextNote = 0;
   isSongFinished = false;
-  isWaitingForInput = false;
+  isDemoPlaying = false;
+
+  for (const note of activeNotes) {
+    notesContainer.removeChild(note);
+  }
+  activeNotes.length = 0;
+
+  playButton.visible = false;
+  openButton.visible = false;
+  shareButton.visible = false;
+
+  initAudio();
+  isGameActive = true;
+}
+
+function startDemo() {
+  melodyIndex = 0;
+  timeSinceLastNote = 0;
+  timeUntilNextNote = 0;
+  isSongFinished = false;
+  isDemoPlaying = true;
+  hasDemoPlayed = true; // Mark that demo has been run
 
   for (const note of activeNotes) {
     notesContainer.removeChild(note);
@@ -591,6 +620,28 @@ function pressKey(index) {
   }
 }
 
+function autoPlayNote(index) {
+  const keyObj = pianoKeys[index];
+  if (!keyObj) return;
+
+  // Visual feedback
+  keyObj.graphic.tint = 0xffa500;
+
+  // Play audio
+  const audioNode = playNote(keyObj.data.id);
+
+  // Show hit effect (at the key's y position)
+  showHitEffect(keyObj.x, keyObj.y);
+
+  // Schedule release
+  setTimeout(() => {
+    keyObj.graphic.tint = keyObj.originalColor;
+    if (audioNode) {
+      stopNote(audioNode, 1.0);
+    }
+  }, 150);
+}
+
 function releaseKey(index) {
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
@@ -718,7 +769,7 @@ async function initGame() {
 
     let effectiveDelta = ticker.deltaTime;
 
-    if (WAIT_MODE && activeNotes.length > 0) {
+    if (WAIT_MODE && !isDemoPlaying && activeNotes.length > 0) {
       const hitLineY = pianoKeys[0].y;
       // We want the bottom of the note (y + NOTE_HEIGHT) to stop at hitLineY
       const stopY = hitLineY - NOTE_HEIGHT;
@@ -779,37 +830,54 @@ async function initGame() {
     }
 
     // 2. Physics (Falling Notes)
-    let closestNote = null;
-    let closestDist = Infinity;
     const hitLineY = pianoKeys[0].y; // Judgment line Y position
 
-    for (let i = activeNotes.length - 1; i >= 0; i--) {
-      const n = activeNotes[i];
-      n.y += SPEED * effectiveDelta;
+    if (isDemoPlaying) {
+      // DEMO MODE: Auto-play notes when they hit the line
+      for (let i = activeNotes.length - 1; i >= 0; i--) {
+        const n = activeNotes[i];
+        n.y += SPEED * effectiveDelta;
 
-      // Reset to original color by default
-      n.tint = n.originalColor;
-
-      const missThreshold = hitLineY + 20;
-
-      // Remove missed notes
-      if (n.y > missThreshold) {
-        notesContainer.removeChild(n);
-        activeNotes.splice(i, 1);
-        continue; // Skip distance check for removed note
+        // Note is played when its bottom edge reaches the line,
+        // keeping it visually above the line when triggered.
+        if (n.y + NOTE_HEIGHT >= hitLineY) {
+          autoPlayNote(n.targetIndex);
+          notesContainer.removeChild(n);
+          activeNotes.splice(i, 1);
+        }
       }
+    } else {
+      // INTERACTIVE MODE: Standard falling and highlighting logic
+      let closestNote = null;
+      let closestDist = Infinity;
 
-      // Calculate distance to find the single closest note
-      const dist = Math.abs(n.y - hitLineY);
-      if (dist < closestDist) {
-        closestDist = dist;
-        closestNote = n;
+      for (let i = activeNotes.length - 1; i >= 0; i--) {
+        const n = activeNotes[i];
+        n.y += SPEED * effectiveDelta;
+
+        // Reset to original color by default
+        n.tint = n.originalColor;
+
+        const missThreshold = hitLineY + 20;
+
+        // Remove missed notes
+        if (n.y > missThreshold) {
+          notesContainer.removeChild(n);
+          activeNotes.splice(i, 1);
+          continue; // Skip distance check for removed note
+        }
+
+        // Calculate distance to find the single closest note
+        const dist = Math.abs(n.y - hitLineY);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestNote = n;
+        }
       }
-    }
-
-    // Apply highlight only to the nearest note if it is within the HIT_ZONE
-    if (closestNote && closestDist < HIT_ZONE) {
-      closestNote.tint = COLOR_NOTE_READY;
+      // Apply highlight only to the nearest note if it is within the HIT_ZONE
+      if (closestNote && closestDist < HIT_ZONE) {
+        closestNote.tint = COLOR_NOTE_READY;
+      }
     }
   });
 }

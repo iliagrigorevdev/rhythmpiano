@@ -9,6 +9,7 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 ## ✨ Features
 
 - **Rhythm Game Mode**: Hit the keys when the falling notes reach the red judgment line.
+- **▶️ Demo Mode**: Add `?demo=true` to the URL to watch the melody play automatically before you try it yourself.
 - **📂 MIDI File Import**: Convert local `.mid` files into playable levels instantly. The app parses the MIDI client-side and updates the URL.
 - **⏳ Wait Mode**: By default, the game pauses if a note reaches the line but hasn't been played, allowing you to learn the melody at your own pace.
 - **Free Play**: Full 2-octave interactive piano when no melody is loaded.
@@ -23,7 +24,7 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 
 You can load your own `.mid` files to create levels automatically.
 
-1. If no melody is loaded via the URL, the **"📂 Open MIDI File"** button will be visible. If a melody is loaded, the "▶ Play Melody" button will be visible instead.
+1. If no melody is loaded via the URL, the **"📂 Open MIDI File"** button will be visible. If a melody is loaded, the **"▶️ Play Melody"** button will be visible instead.
 2. Click the **"📂 Open MIDI File"** button.
 3. Select a simple MIDI file (Track 1 is used for the melody).
 
@@ -36,6 +37,7 @@ You can manually configure levels by modifying the URL.
 | `bpm`     | Beats per minute.                                              | `100`   |
 | `speed`   | Falling speed of notes in pixels per frame.                    | `4`     |
 | `wait`    | `true` pauses game if note is missed. `false` lets notes pass. | `true`  |
+| `demo`    | `true` enables an auto-play demo before the game.              | `false` |
 | `melody`  | The encoded note sequence.                                     | `""`    |
 
 ### Melody Syntax
