@@ -39,7 +39,7 @@ export async function convertMidiToUrlData(arrayBuffer) {
     const gapTicks = note.ticks - lastTick;
     if (gapTicks > 0) {
       const gapDuration = (gapTicks / ppq) * 2;
-      if (gapDuration > 0.05) {
+      if (gapDuration > 0.05 && events.length > 0) {
         events.push({ type: "rest", duration: gapDuration });
       }
     }
