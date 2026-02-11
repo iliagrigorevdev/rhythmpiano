@@ -107,7 +107,7 @@ const pianoKeys = [];
 const activeNotes = [];
 
 // UI Elements
-let startText;
+let playButton;
 let loadingText;
 let uploadButton;
 
@@ -160,7 +160,7 @@ fileInput.addEventListener("change", async (e) => {
       "Failed to parse MIDI file. Make sure it has notes in the first track.",
     );
     loadingText.visible = false;
-    startText.visible = true;
+    playButton.visible = true;
   }
 });
 
@@ -264,6 +264,16 @@ function createUI() {
     stroke: { color: 0x000000, width: 4 },
   };
 
+  const btnStyle = {
+    ...style,
+    fontSize: 24,
+    fill: 0xffffff,
+    stroke: { color: 0x000000, width: 2 },
+  };
+
+  const paddingX = 40;
+  const paddingY = 20;
+
   // Loading Text
   loadingText = new PIXI.Text({ text: "Loading Sounds...", style });
   loadingText.x = WIDTH / 2;
@@ -271,66 +281,79 @@ function createUI() {
   loadingText.anchor.set(0.5);
   uiContainer.addChild(loadingText);
 
-  // Start Text
-  const textContent =
-    parsedMelody.length > 0 ? "Tap to Start" : "Tap for Free Play";
-  startText = new PIXI.Text({ text: textContent, style });
-  startText.x = WIDTH / 2;
-  startText.y = HEIGHT / 2 - 100;
-  startText.anchor.set(0.5);
-  startText.eventMode = "static";
-  startText.cursor = "pointer";
-  startText.visible = false; // Hidden until loaded
-  startText.on("pointerdown", () => {
+  // --- Play Button (Container) ---
+  playButton = new PIXI.Container();
+  playButton.x = WIDTH / 2;
+  playButton.y = HEIGHT / 2 - 100;
+  playButton.visible = false; // Hidden until loaded
+  playButton.eventMode = "static";
+  playButton.cursor = "pointer";
+
+  // 1. Text Object
+  const playBtnText = new PIXI.Text({
+    text: "▶ Play Melody",
+    style: btnStyle,
+  });
+  playBtnText.anchor.set(0.5);
+
+  // 2. Background Object
+  const playBg = new PIXI.Graphics();
+  playBg.roundRect(
+    -playBtnText.width / 2 - paddingX / 2,
+    -playBtnText.height / 2 - paddingY / 2,
+    playBtnText.width + paddingX,
+    playBtnText.height + paddingY,
+    10,
+  );
+  playBg.fill({ color: 0x000000, alpha: 0.8 });
+  playBg.stroke({ width: 2, color: 0xffffff });
+
+  // 3. Add to Container
+  playButton.addChild(playBg);
+  playButton.addChild(playBtnText);
+
+  // 4. Events
+  playButton.on("pointerdown", () => {
     resetGame();
   });
 
-  uiContainer.addChild(startText);
+  uiContainer.addChild(playButton);
 
   // --- Upload Button (Container) ---
   uploadButton = new PIXI.Container();
   uploadButton.x = WIDTH / 2;
-  uploadButton.y = HEIGHT / 2 - 50;
+  uploadButton.y = HEIGHT / 2 - 100;
   uploadButton.visible = false;
   uploadButton.eventMode = "static";
   uploadButton.cursor = "pointer";
 
   // 1. Text Object
-  const btnStyle = {
-    ...style,
-    fontSize: 24,
-    fill: 0xffffff,
-    stroke: { color: 0x000000, width: 2 },
-  };
-  const btnText = new PIXI.Text({
+  const uploadBtnText = new PIXI.Text({
     text: "📂 Open MIDI File",
     style: btnStyle,
   });
-  btnText.anchor.set(0.5);
+  uploadBtnText.anchor.set(0.5);
 
   // 2. Background Object (Based on text size)
-  const bg = new PIXI.Graphics();
-  const paddingX = 40;
-  const paddingY = 20;
-  bg.roundRect(
-    -btnText.width / 2 - paddingX / 2,
-    -btnText.height / 2 - paddingY / 2,
-    btnText.width + paddingX,
-    btnText.height + paddingY,
+  const uploadBg = new PIXI.Graphics();
+  uploadBg.roundRect(
+    -uploadBtnText.width / 2 - paddingX / 2,
+    -uploadBtnText.height / 2 - paddingY / 2,
+    uploadBtnText.width + paddingX,
+    uploadBtnText.height + paddingY,
     10,
   );
-  bg.fill({ color: 0x000000, alpha: 0.8 });
-  bg.stroke({ width: 2, color: 0xffffff });
+  uploadBg.fill({ color: 0x000000, alpha: 0.8 });
+  uploadBg.stroke({ width: 2, color: 0xffffff });
 
   // 3. Add to Container (Order matters: Background first, then Text)
-  uploadButton.addChild(bg);
-  uploadButton.addChild(btnText);
+  uploadButton.addChild(uploadBg);
+  uploadButton.addChild(uploadBtnText);
 
   // 4. Events
   uploadButton.on("pointerdown", (e) => {
     e.stopPropagation();
     fileInput.click();
-    resetToMenu();
   });
 
   uiContainer.addChild(uploadButton);
@@ -376,7 +399,7 @@ function resetGame() {
   }
   activeNotes.length = 0;
 
-  startText.visible = false;
+  playButton.visible = false;
   uploadButton.visible = false;
 
   initAudio();
@@ -385,9 +408,7 @@ function resetGame() {
 
 function resetToMenu() {
   isGameActive = false;
-  startText.text = "Tap to Start";
-  startText.visible = true;
-  uploadButton.visible = false;
+  playButton.visible = true;
 }
 
 function spawnNote(noteData) {
@@ -443,7 +464,6 @@ function spawnNote(noteData) {
 
 function pressKey(index) {
   if (!isGameActive && !loadingText.visible && !uploadButton.visible) {
-    resetGame();
     return;
   }
 
@@ -572,51 +592,7 @@ async function initGame() {
   const canvas = app.canvas;
   document.body.appendChild(canvas);
 
-  // --- Long Press Logic ---
-  let longPressTimer = null;
-  let startX = 0;
-  let startY = 0;
-  const LONG_PRESS_DURATION = 800; // ms
-  const MOVE_THRESHOLD = 20; // px
-
-  const cancelLongPress = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
-  };
-
-  const handlePointerDown = (e) => {
-    if (!e.isPrimary) return;
-    startX = e.clientX;
-    startY = e.clientY;
-    cancelLongPress();
-
-    longPressTimer = setTimeout(() => {
-      // Show upload button only if we are in menu state
-      if (!isGameActive) {
-        uploadButton.visible = true;
-        startText.visible = false;
-        uiContainer.zIndex = 100;
-      }
-      longPressTimer = null;
-    }, LONG_PRESS_DURATION);
-  };
-
-  const handlePointerMove = (e) => {
-    if (!longPressTimer) return;
-    const dx = Math.abs(e.clientX - startX);
-    const dy = Math.abs(e.clientY - startY);
-    if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
-      cancelLongPress();
-    }
-  };
-
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-  canvas.addEventListener("pointerdown", handlePointerDown);
-  canvas.addEventListener("pointerup", cancelLongPress);
-  canvas.addEventListener("pointercancel", cancelLongPress);
-  canvas.addEventListener("pointermove", handlePointerMove);
 
   const preventDefault = (e) => e.preventDefault();
   canvas.addEventListener("touchstart", preventDefault, { passive: false });
@@ -677,7 +653,8 @@ async function initGame() {
 
   // Ready to play
   loadingText.visible = false;
-  startText.visible = true;
+  playButton.visible = parsedMelody.length > 0;
+  uploadButton.visible = !playButton.visible;
 
   app.ticker.add((ticker) => {
     if (!isGameActive) return;

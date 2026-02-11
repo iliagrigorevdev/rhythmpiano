@@ -35,10 +35,9 @@ Click below to load the melody directly:
 
 You can load your own `.mid` files to create levels automatically.
 
-1. Ensure you are on the Main Menu ("Tap to Start" screen).
-2. **Long-press (click and hold)** anywhere on the background for 1 second.
-3. Click the **"📂 Open MIDI File"** button that appears.
-4. Select a simple MIDI file (Track 1 is used for the melody).
+1. If no melody is loaded via the URL, the **"📂 Open MIDI File"** button will be visible. If a melody is loaded, the "▶ Play Melody" button will be visible instead.
+2. Click the **"📂 Open MIDI File"** button.
+3. Select a simple MIDI file (Track 1 is used for the melody).
 
 ### URL Parameters
 
