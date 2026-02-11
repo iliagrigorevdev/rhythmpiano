@@ -393,8 +393,8 @@ function createUI() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Piano Melody",
-          text: "Check out this melody!",
+          title: "Rhythm Piano",
+          text: "", // Left empty so only the URL is shared
           url: url,
         });
       } catch (err) {
