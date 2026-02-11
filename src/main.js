@@ -17,6 +17,7 @@ const HEIGHT = 400;
 const urlParams = new URLSearchParams(window.location.search);
 const BPM = parseInt(urlParams.get("bpm")) || 100;
 const SPEED = parseInt(urlParams.get("speed")) || 4; // Pixels per frame
+const TRANSPOSE = parseInt(urlParams.get("transpose")) || 0; // Semitones
 
 // Feature Flag: Wait for Input
 // Default: true. If set to false (?wait=false), notes will fall past the line without stopping.
@@ -151,7 +152,7 @@ fileInput.addEventListener("change", async (e) => {
 
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const { bpm, melody } = await convertMidiToUrlData(arrayBuffer);
+    const { bpm, melody } = await convertMidiToUrlData(arrayBuffer, TRANSPOSE);
 
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set("bpm", bpm);

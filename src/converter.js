@@ -3,9 +3,10 @@ import { Midi } from "@tonejs/midi";
 /**
  * Converts an ArrayBuffer (from a MIDI file) into a URL-friendly ABC string and BPM.
  * @param {ArrayBuffer} arrayBuffer
+ * @param {number} transpose - Semitones to transpose the melody by
  * @returns {Promise<{bpm: number, melody: string}>}
  */
-export async function convertMidiToUrlData(arrayBuffer) {
+export async function convertMidiToUrlData(arrayBuffer, transpose = 0) {
   const midi = new Midi(arrayBuffer);
 
   // Extract base BPM (Default to 120 if missing)
@@ -68,7 +69,8 @@ export async function convertMidiToUrlData(arrayBuffer) {
     if (event.type === "rest") {
       abcString += `z${durationString}`;
     } else {
-      let currentMidi = event.midi;
+      let currentMidi = event.midi + transpose;
+
       // Shift octave to fit range
       while (currentMidi < MIN_MIDI) currentMidi += 12;
       while (currentMidi > MAX_MIDI) currentMidi -= 12;
