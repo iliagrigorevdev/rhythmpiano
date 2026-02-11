@@ -17,18 +17,6 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 - **URL-Based Level Sharing**: Melodies, BPM, and scroll speed are encoded entirely in the URL.
 - **Responsive Design**: Scales to fit desktop and mobile screens.
 
-## 🎵 Featured Tracks
-
-Click below to load the melody directly:
-
-- [**▶️ Gravity Falls Theme**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=160&melody=FDA.DFDA.DFCA.CFCA.CE_DA._DE_DA._DE_DA._DE2A2D6E2F8A3G3A2C8D6E2F4E4G4A4G4F4z2F2F2F2A2A2G2F2z2A2A2A2G2A2G2F2z2F2F2F2A2A2G2F2z2A2A2A2z2_d2_d2_d2z2F2F2F2A2A2G2F2z2_B2_B2_B2G4c4A4E4FDFAE_DAdd8)
-
-- [**▶️ How It's Done (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=150&melody=DDD2F2FED2D2_B2z2_B2_B2d2dc_B2A2D2z2DDD2F2FED2D2_B2_BAG2F2z2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2d2d2c2z2_e2c2_e2d2A2A2A2A2_E_EC2_E2D2A2A2D2_B2_B_B2zA2z2A2A2D2_B2_B_B2zA2z2AAA2D2_B2_B_B2zA2z2A2A2A2A2_E_EC2_E2D2)
-
-- [**▶️ Takedown (KPop Demon Hunters)**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=140&melody=B_AB_AB_AB_A_d2_A6e_e_dB_A_GE_G_A3~2A~2_A4E_G_A3~2A~2_A2z_AB_A_d2_A4z_Ae_e_dB_A_GE_G_A3~2A~2_A4E_G_A3~2A~2_A4z2_A~2_A3~2_A2_d_G_G_G_D2_A2_d2_A2A2A_G_A2_A2_D2_A2_d2_A2A2AB_A2_G~2_G3~2_D2_A2_d2_A2A2A_G_A2_A2_D2_A2_d2_A2A2AB_A4_D8)
-
-- [**▶️ Sigma Boy**](https://iliagrigorevdev.github.io/rhythmpiano/?bpm=125&melody=_G_G_G_dB2B_dA2AB_A2z2_G_G_G_dBBB_dAAAB_A2z2)
-
 ## 🛠️ Usage & Configuration
 
 ### Importing MIDI Files
