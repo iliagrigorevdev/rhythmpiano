@@ -17,29 +17,19 @@ const HEIGHT = 400;
 
 const urlParams = new URLSearchParams(window.location.search);
 const BPM = parseInt(urlParams.get("bpm")) || 100;
-const SPEED = parseInt(urlParams.get("speed")) || 4; // Pixels per frame
-
-// Feature Flag: Wait for Input
-// Default: true. If set to false (?wait=false), notes will fall past the line without stopping.
+const SPEED = parseInt(urlParams.get("speed")) || 4;
 const WAIT_MODE = urlParams.get("wait") !== "false";
-
-// Feature Flag: Demo Mode
 const DEMO_MODE = urlParams.get("demo") === "true";
 
 const START_NOTE = "C3";
 const END_NOTE = "B5";
 
-// Calculate frames per beat globally for visual spacing calculations
-// BPM = Beats per minute. 60 FPS assumed.
-// Duration 1 in parser = 1/8th note.
-// Standard beat (quarter note) = 2 units of duration.
 const FRAMES_PER_BEAT = ((60 / BPM) * 60) / 2;
 
 // --- COLORS ---
-const COLOR_WHITE_KEY = 0xf0f0f0; // Off-white/Light Gray
-const COLOR_BLACK_KEY = 0x202020; // Not pure black
+const COLOR_WHITE_KEY = 0xf0f0f0;
+const COLOR_BLACK_KEY = 0x202020;
 
-// --- ABC MELODY DEFINITION ---
 const getMelody = () => {
   const urlMelody = urlParams.get("melody");
   if (urlMelody) {
@@ -49,7 +39,6 @@ const getMelody = () => {
   return "";
 };
 
-// Notes definition - generated dynamically based on Start Note
 const NOTES_DATA = Object.values(generateNoteRange(START_NOTE, END_NOTE)).map(
   (note) => ({
     id: note,
@@ -57,18 +46,25 @@ const NOTES_DATA = Object.values(generateNoteRange(START_NOTE, END_NOTE)).map(
   }),
 );
 
-// --- DYNAMIC DIMENSIONS ---
+// --- DYNAMIC DIMENSIONS & SCROLLING ---
+const VISIBLE_KEYS = 10;
 const TOTAL_WHITE_KEYS = NOTES_DATA.filter((n) => n.type === "white").length;
 const AVAILABLE_WIDTH = WIDTH * 0.95;
-const START_X = (WIDTH - AVAILABLE_WIDTH) / 2;
-const WHITE_KEY_WIDTH = AVAILABLE_WIDTH / TOTAL_WHITE_KEYS;
+
+const WHITE_KEY_WIDTH = WIDTH / VISIBLE_KEYS;
 const BLACK_KEY_WIDTH = WHITE_KEY_WIDTH * 0.65;
-const WHITE_KEY_HEIGHT = 160;
-const BLACK_KEY_HEIGHT = WHITE_KEY_HEIGHT * 0.55;
+
+const TOTAL_PIANO_WIDTH = TOTAL_WHITE_KEYS * WHITE_KEY_WIDTH;
+
+const WHITE_KEY_HEIGHT = 180;
+const BLACK_KEY_HEIGHT = WHITE_KEY_HEIGHT * 0.5;
 
 // --- SETUP PIXI & STATE ---
 const app = new PIXI.Application();
 const gameContainer = new PIXI.Container();
+
+// World Container holds the scrolling elements (Keys + Notes)
+const worldContainer = new PIXI.Container();
 const keysContainer = new PIXI.Container();
 const notesContainer = new PIXI.Container();
 const uiContainer = new PIXI.Container();
@@ -86,7 +82,7 @@ let shareButton;
 let parsedMelody = [];
 let melodyIndex = 0;
 let timeSinceLastNote = 0;
-let timeUntilNextNote = 0; // frames
+let timeUntilNextNote = 0;
 let isGameActive = false;
 let isSongFinished = false;
 
@@ -94,12 +90,15 @@ let isSongFinished = false;
 let isDemoPlaying = false;
 let hasDemoPlayed = false;
 
+// Camera State
+let targetCameraX = 0;
+
 // Constants
 const NOTE_HEIGHT = 40;
 const NOTE_GAP = 5;
 const NOTE_CLEARANCE = NOTE_HEIGHT + NOTE_GAP;
 const HIT_ZONE = 2 * NOTE_HEIGHT;
-const COLOR_NOTE_READY = 0xffff00; // Yellow when ready to hit
+const COLOR_NOTE_READY = 0xffff00;
 
 // --- FILE OPEN LOGIC ---
 const fileInput = document.createElement("input");
@@ -120,12 +119,9 @@ fileInput.addEventListener("change", async (e) => {
 
   try {
     const arrayBuffer = await file.arrayBuffer();
-
-    // Calculate MIDI bounds for current range
     const minMidi = noteNameToMidi(START_NOTE);
     const maxMidi = noteNameToMidi(END_NOTE);
 
-    // Convert MIDI passing in specific range bounds
     const { bpm, melody } = await convertMidiToUrlData(
       arrayBuffer,
       minMidi,
@@ -138,9 +134,7 @@ fileInput.addEventListener("change", async (e) => {
     window.location.href = newUrl.toString();
   } catch (err) {
     console.error(err);
-    alert(
-      "Failed to parse MIDI file. Make sure it has notes in the first track.",
-    );
+    alert("Failed to parse MIDI file.");
     loadingText.visible = false;
     playButton.visible = true;
   }
@@ -151,17 +145,17 @@ function createPiano() {
   let whiteKeyIndex = 0;
   const yPos = HEIGHT - WHITE_KEY_HEIGHT - 20;
 
-  // 0. Draw Visual Hit Line (Judgment Line)
+  // 0. Draw Visual Hit Line (Full Width)
   const hitLine = new PIXI.Graphics();
-  hitLine.moveTo(START_X, yPos + 2);
-  hitLine.lineTo(START_X + AVAILABLE_WIDTH, yPos + 2);
+  hitLine.moveTo(0, yPos + 2);
+  hitLine.lineTo(WIDTH, yPos + 2);
   hitLine.stroke({ width: 6, color: 0xcc0000 });
   uiContainer.addChild(hitLine);
 
   // 1. Draw White Keys
   NOTES_DATA.forEach((note, index) => {
     if (note.type === "white") {
-      const x = START_X + whiteKeyIndex * WHITE_KEY_WIDTH;
+      const x = whiteKeyIndex * WHITE_KEY_WIDTH;
       const rect = new PIXI.Graphics();
       rect.roundRect(0, 0, WHITE_KEY_WIDTH, WHITE_KEY_HEIGHT, 6);
 
@@ -173,7 +167,6 @@ function createPiano() {
       rect.cursor = "pointer";
       rect.tint = COLOR_WHITE_KEY;
 
-      // Bind events
       rect.on("pointerdown", () => pressKey(index));
       rect.on("pointerup", () => releaseKey(index));
       rect.on("pointerupoutside", () => releaseKey(index));
@@ -187,7 +180,7 @@ function createPiano() {
         y: yPos,
         width: WHITE_KEY_WIDTH,
         data: note,
-        audioNode: null, // Store reference to playing sound
+        audioNode: null,
       };
       whiteKeyIndex++;
     }
@@ -199,8 +192,7 @@ function createPiano() {
     if (note.type === "white") {
       currentWhiteIndex++;
     } else {
-      const x =
-        START_X + currentWhiteIndex * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
+      const x = currentWhiteIndex * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
       const rect = new PIXI.Graphics();
       rect.roundRect(0, 0, BLACK_KEY_WIDTH, BLACK_KEY_HEIGHT, 3);
       rect.fill(0xffffff);
@@ -211,7 +203,6 @@ function createPiano() {
       rect.eventMode = "static";
       rect.cursor = "pointer";
 
-      // Bind events
       rect.on("pointerdown", () => pressKey(index));
       rect.on("pointerup", () => releaseKey(index));
       rect.on("pointerupoutside", () => releaseKey(index));
@@ -236,6 +227,59 @@ function createPiano() {
   });
 }
 
+// Helper to center camera immediately, snapping to grid
+function centerCameraOnIndex(index, immediate = false) {
+  if (!pianoKeys[index]) return;
+  const keyX = pianoKeys[index].x;
+
+  // Calculate center position
+  let rawTarget = -keyX + WIDTH / 2;
+
+  // Snap to grid
+  targetCameraX = Math.round(rawTarget / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
+
+  // Clamp
+  const maxScroll = -(TOTAL_PIANO_WIDTH - WIDTH);
+  if (targetCameraX > 0) targetCameraX = 0;
+  if (targetCameraX < maxScroll)
+    targetCameraX = Math.floor(maxScroll / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
+
+  if (immediate) {
+    worldContainer.x = targetCameraX;
+  }
+}
+
+// Helper to center camera based on the range of notes used in melody
+function alignCameraToMelodyRange() {
+  if (parsedMelody.length === 0) {
+    centerCameraOnIndex(Math.floor(pianoKeys.length / 2), true);
+    return;
+  }
+
+  let minIndex = Infinity;
+  let maxIndex = -Infinity;
+  let found = false;
+
+  parsedMelody.forEach((n) => {
+    if (n.id) {
+      const idx = NOTES_DATA.findIndex((nd) => nd.id === n.id);
+      if (idx !== -1) {
+        if (idx < minIndex) minIndex = idx;
+        if (idx > maxIndex) maxIndex = idx;
+        found = true;
+      }
+    }
+  });
+
+  if (found) {
+    // Find the midpoint index between the lowest and highest note used
+    const midIndex = Math.floor((minIndex + maxIndex) / 2);
+    centerCameraOnIndex(midIndex, true);
+  } else {
+    centerCameraOnIndex(Math.floor(pianoKeys.length / 2), true);
+  }
+}
+
 function createUI() {
   const style = {
     fontFamily: "Arial",
@@ -249,36 +293,31 @@ function createUI() {
   const btnStyle = {
     ...style,
     fontSize: 24,
-    fill: 0xffffff,
     stroke: { color: 0x000000, width: 2 },
   };
-
   const paddingX = 40;
   const paddingY = 20;
 
-  // Loading Text
   loadingText = new PIXI.Text({ text: "Loading Sounds...", style });
   loadingText.x = WIDTH / 2;
   loadingText.y = HEIGHT / 2 - 50;
   loadingText.anchor.set(0.5);
   uiContainer.addChild(loadingText);
 
-  // --- Play Button (Container) ---
+  // Play Button
   playButton = new PIXI.Container();
   playButton.x = WIDTH / 2;
   playButton.y = HEIGHT / 2 - 100;
-  playButton.visible = false; // Hidden until loaded
+  playButton.visible = false;
   playButton.eventMode = "static";
   playButton.cursor = "pointer";
 
-  // 1. Text Object
   const playBtnText = new PIXI.Text({
     text: "▶️  Play Melody",
     style: btnStyle,
   });
   playBtnText.anchor.set(0.5);
 
-  // 2. Background Object
   const playBg = new PIXI.Graphics();
   playBg.roundRect(
     -playBtnText.width / 2 - paddingX / 2,
@@ -290,11 +329,8 @@ function createUI() {
   playBg.fill({ color: 0x000000, alpha: 0.8 });
   playBg.stroke({ width: 2, color: 0xffffff });
 
-  // 3. Add to Container
   playButton.addChild(playBg);
   playButton.addChild(playBtnText);
-
-  // 4. Events
   playButton.on("pointerdown", () => {
     if (DEMO_MODE && !hasDemoPlayed) {
       startDemo();
@@ -302,10 +338,9 @@ function createUI() {
       resetGame();
     }
   });
-
   uiContainer.addChild(playButton);
 
-  // --- Open Button (Container) ---
+  // Open Button
   openButton = new PIXI.Container();
   openButton.x = WIDTH / 2;
   openButton.y = HEIGHT / 2 - 100;
@@ -313,14 +348,12 @@ function createUI() {
   openButton.eventMode = "static";
   openButton.cursor = "pointer";
 
-  // 1. Text Object
   const openBtnText = new PIXI.Text({
     text: "📂 Open MIDI File",
     style: btnStyle,
   });
   openBtnText.anchor.set(0.5);
 
-  // 2. Background Object (Based on text size)
   const openBg = new PIXI.Graphics();
   openBg.roundRect(
     -openBtnText.width / 2 - paddingX / 2,
@@ -332,22 +365,18 @@ function createUI() {
   openBg.fill({ color: 0x000000, alpha: 0.8 });
   openBg.stroke({ width: 2, color: 0xffffff });
 
-  // 3. Add to Container (Order matters: Background first, then Text)
   openButton.addChild(openBg);
   openButton.addChild(openBtnText);
-
-  // 4. Events
   openButton.on("pointerdown", (e) => {
     e.stopPropagation();
     fileInput.click();
   });
-
   uiContainer.addChild(openButton);
 
-  // --- Share Button ---
+  // Share Button
   shareButton = new PIXI.Container();
   shareButton.x = WIDTH / 2;
-  shareButton.y = HEIGHT / 2 - 30;
+  shareButton.y = HEIGHT / 2 - 35;
   shareButton.visible = false;
   shareButton.eventMode = "static";
   shareButton.cursor = "pointer";
@@ -365,30 +394,20 @@ function createUI() {
 
   shareButton.addChild(shareBg);
   shareButton.addChild(shareText);
-
   shareButton.on("pointerdown", async () => {
     let url = window.location.href;
     url = url.replace(/%7E/g, "~");
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: "Rhythm Piano",
-          text: "", // Left empty so only the URL is shared
-          url: url,
-        });
-      } catch (err) {
-        // Share cancelled
-      }
+        await navigator.share({ title: "Rhythm Piano", text: "", url: url });
+      } catch (err) {}
     } else {
       try {
         await navigator.clipboard.writeText(url);
         alert("URL copied to clipboard!");
-      } catch (err) {
-        console.error("Failed to copy URL", err);
-      }
+      } catch (err) {}
     }
   });
-
   uiContainer.addChild(shareButton);
 }
 
@@ -409,6 +428,9 @@ function resetGame() {
   openButton.visible = false;
   shareButton.visible = false;
 
+  // Align camera to song range
+  alignCameraToMelodyRange();
+
   initAudio();
   isGameActive = true;
 }
@@ -419,7 +441,7 @@ function startDemo() {
   timeUntilNextNote = 0;
   isSongFinished = false;
   isDemoPlaying = true;
-  hasDemoPlayed = true; // Mark that demo has been run
+  hasDemoPlayed = true;
 
   for (const note of activeNotes) {
     notesContainer.removeChild(note);
@@ -429,6 +451,9 @@ function startDemo() {
   playButton.visible = false;
   openButton.visible = false;
   shareButton.visible = false;
+
+  // Align camera to song range
+  alignCameraToMelodyRange();
 
   initAudio();
   isGameActive = true;
@@ -449,34 +474,16 @@ function spawnNote(noteData) {
   const color = targetKey.data.type === "white" ? 0x00ffff : 0xff00ff;
 
   const width = targetKey.width - 4;
-
-  // Visual Gap Logic:
-  // We want a fixed 40px height note.
-  // However, if the NEXT note is coming too soon (close), we need to create a visual gap.
-  // The 'Next' note physically spawns ABOVE this one (since notes fall down).
-  // Therefore, the collision point is the TOP of THIS note vs the BOTTOM of the NEXT note.
-  // To make a gap, we shave height off the TOP of THIS note.
-
   const distToNext = noteData.duration * FRAMES_PER_BEAT * SPEED;
 
   let topOffset = 0;
-
-  // Logic: We need at least (NOTE_HEIGHT + NOTE_GAP) space.
-  // 'distToNext' is the physical distance between the start (anchor) of this note and the next.
   if (distToNext < NOTE_CLEARANCE) {
-    // If distance is too small, we start drawing lower (offset from top)
     topOffset = NOTE_CLEARANCE - distToNext;
   }
-
-  // Ensure we don't erase the whole note. Min height 5px.
   topOffset = Math.min(topOffset, NOTE_HEIGHT - 5);
-
   const finalHeight = NOTE_HEIGHT - topOffset;
 
-  // Draw rectangle with offset on the Y-axis (top)
   note.roundRect(-width / 2, topOffset, width, finalHeight, 4);
-
-  // We fill with WHITE so we can use tinting efficiently for color changes
   note.fill(0xffffff);
   note.tint = color;
 
@@ -485,7 +492,7 @@ function spawnNote(noteData) {
   note.targetIndex = index;
   note.active = true;
   note.id = noteData.id;
-  note.originalColor = color; // Store original color to revert if needed
+  note.originalColor = color;
 
   notesContainer.addChild(note);
   activeNotes.push(note);
@@ -500,23 +507,16 @@ function pressKey(index) {
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
 
-  // Visual feedback (Press down)
   keyObj.graphic.tint = 0xffa500;
 
-  // Stop previous sound if any (re-triggering)
   if (keyObj.audioNode) {
     stopNote(keyObj.audioNode);
   }
-
-  // Play audio (Sample)
   keyObj.audioNode = playNote(keyObj.data.id);
 
   if (!isGameActive) return;
 
-  // Hit detection
   const hitLineY = keyObj.y;
-
-  // 1. Find the ABSOLUTE closest distance among ALL active notes (any column)
   let minGlobalDistance = Infinity;
 
   for (const n of activeNotes) {
@@ -528,32 +528,18 @@ function pressKey(index) {
     }
   }
 
-  // If the closest note on screen is outside the hit zone, we can't hit anything.
   if (minGlobalDistance > HIT_ZONE) return;
 
-  // 2. Find if the pressed key has a note that matches this global timing
-  // We allow a small tolerance (e.g., 10px) to handle chords where multiple notes
-  // are basically at the same distance.
   const CHORD_TOLERANCE = 10;
-
   let noteToHitIndex = -1;
   let minColDistance = Infinity;
 
   for (let i = 0; i < activeNotes.length; i++) {
     const n = activeNotes[i];
-
-    // Check if note is in the pressed column
     if (n.targetIndex === index && n.active) {
       const dist = Math.abs(n.y - hitLineY);
-
-      // It must be within the Hit Zone
       if (dist < HIT_ZONE) {
-        // CRITICAL CHECK:
-        // The note in this column must be roughly as close as the closest note on the ENTIRE screen.
-        // If Global Closest is 5px away (Note B), and this note is 100px away (Note A),
-        // 100 <= 5 + 10 is False. We do not hit Note A.
         if (dist <= minGlobalDistance + CHORD_TOLERANCE) {
-          // Standard closest-in-column check
           if (dist < minColDistance) {
             minColDistance = dist;
             noteToHitIndex = i;
@@ -563,7 +549,6 @@ function pressKey(index) {
     }
   }
 
-  // If a valid note was found that matches the global timing context
   if (noteToHitIndex !== -1) {
     const noteToRemove = activeNotes[noteToHitIndex];
     showHitEffect(keyObj.x, hitLineY);
@@ -576,16 +561,10 @@ function autoPlayNote(index) {
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
 
-  // Visual feedback
   keyObj.graphic.tint = 0xffa500;
-
-  // Play audio
   const audioNode = playNote(keyObj.data.id);
-
-  // Show hit effect (at the key's y position)
   showHitEffect(keyObj.x, keyObj.y);
 
-  // Schedule release
   setTimeout(() => {
     keyObj.graphic.tint = keyObj.originalColor;
     if (audioNode) {
@@ -597,11 +576,7 @@ function autoPlayNote(index) {
 function releaseKey(index) {
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
-
-  // Revert visual
   keyObj.graphic.tint = keyObj.originalColor;
-
-  // Stop audio (Release)
   if (keyObj.audioNode) {
     stopNote(keyObj.audioNode, 1.0);
     keyObj.audioNode = null;
@@ -614,7 +589,8 @@ function showHitEffect(x, y) {
   burst.fill({ color: 0xffffff, alpha: 0.6 });
   burst.x = x;
   burst.y = y;
-  gameContainer.addChild(burst);
+  // Add to worldContainer so it moves with the piano
+  worldContainer.addChild(burst);
 
   let tick = 0;
   const animate = () => {
@@ -622,12 +598,98 @@ function showHitEffect(x, y) {
     burst.scale.set(1 + tick / 10);
     burst.alpha -= 0.1;
     if (burst.alpha <= 0) {
-      gameContainer.removeChild(burst);
+      worldContainer.removeChild(burst);
       app.ticker.remove(animate);
       burst.destroy();
     }
   };
   app.ticker.add(animate);
+}
+
+// --- UPDATE CAMERA LOGIC ---
+function updateCamera() {
+  if (!isGameActive) return;
+
+  // 1. Identify "Nearest Relevant Note"
+  let relevantKeyX = null;
+
+  if (activeNotes.length > 0) {
+    // Find closest note to bottom
+    let maxY = -Infinity;
+    let bottomNote = null;
+
+    for (const n of activeNotes) {
+      if (n.y > maxY) {
+        maxY = n.y;
+        bottomNote = n;
+      }
+    }
+    if (bottomNote) {
+      relevantKeyX = bottomNote.x;
+    }
+  } else if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
+    // Look ahead if no active notes
+    const noteId = parsedMelody[melodyIndex].id;
+    const keyData = pianoKeys.find((k) => k.data.id === noteId);
+    if (keyData) {
+      relevantKeyX = keyData.x;
+    }
+  }
+
+  if (relevantKeyX !== null) {
+    // Current snaps
+    const currentTargetX = targetCameraX;
+
+    // Predicted screen position of the note
+    const predictedScreenX = relevantKeyX + currentTargetX;
+
+    // Margin: 1.5 keys from edge
+    const margin = WHITE_KEY_WIDTH * 1.5;
+
+    let needsShift = false;
+    let rawNewTarget = currentTargetX;
+
+    // Check Left Bound
+    if (predictedScreenX < margin) {
+      // Note is too far Left. Move view Right (increase worldX, make less negative/more positive)
+      // predicted = relevant + newTarget >= margin
+      // newTarget >= margin - relevant
+      // To be minimal, we set it to exactly margin - relevant
+      rawNewTarget = margin - relevantKeyX;
+
+      // Snap: Since we are moving Right (WorldX increasing), we want to make sure
+      // we snap to a grid line that is >= rawNewTarget to keep the note inside the margin.
+      // Coordinate system: X is negative. Increasing X means moving closer to 0.
+      // If raw is -550, and we round, we get -600 (left) or -500 (right).
+      // -500 is > -550. -600 is < -550.
+      // We want > -550. So we use Ceil.
+      targetCameraX =
+        Math.ceil(rawNewTarget / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
+    }
+    // Check Right Bound
+    else if (predictedScreenX > WIDTH - margin) {
+      // Note is too far Right. Move view Left (decrease worldX, make more negative)
+      // predicted = relevant + newTarget <= WIDTH - margin
+      // newTarget <= WIDTH - margin - relevant
+      rawNewTarget = WIDTH - margin - relevantKeyX;
+
+      // Snap: We want newTarget <= raw. Use Floor.
+      targetCameraX =
+        Math.floor(rawNewTarget / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
+    }
+  }
+
+  // Clamp world bounds
+  const maxScroll = -(TOTAL_PIANO_WIDTH - WIDTH);
+  // Ensure strict clamp to grid
+  const maxScrollSnapped =
+    Math.floor(maxScroll / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
+
+  if (targetCameraX > 0) targetCameraX = 0;
+  if (targetCameraX < maxScrollSnapped) targetCameraX = maxScrollSnapped;
+
+  // Smooth movement
+  worldContainer.x += (targetCameraX - worldContainer.x) * 0.05;
 }
 
 // --- INITIALIZATION ---
@@ -640,20 +702,20 @@ async function initGame() {
     resolution: window.devicePixelRatio || 1,
   });
 
-  // --- Native Event blocking for Android ---
   const canvas = app.canvas;
   document.body.appendChild(canvas);
 
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-
   const preventDefault = (e) => e.preventDefault();
   canvas.addEventListener("touchstart", preventDefault, { passive: false });
   canvas.addEventListener("touchmove", preventDefault, { passive: false });
   canvas.addEventListener("touchend", preventDefault, { passive: false });
 
   app.stage.addChild(gameContainer);
-  gameContainer.addChild(notesContainer);
-  gameContainer.addChild(keysContainer);
+
+  gameContainer.addChild(worldContainer);
+  worldContainer.addChild(keysContainer);
+  worldContainer.addChild(notesContainer);
   gameContainer.addChild(uiContainer);
 
   parsedMelody = parseABC(getMelody());
@@ -661,35 +723,27 @@ async function initGame() {
   createPiano();
   createUI();
 
-  // Setup Resize Listener
+  // Initial alignment
+  alignCameraToMelodyRange();
+
   const resize = () => {
     const screenWidth = app.screen.width;
     const screenHeight = app.screen.height;
-
     if (screenWidth === 0 || screenHeight === 0) return;
 
-    // Check if device is in portrait mode
     const isPortrait = screenHeight > screenWidth;
-
     let scale;
 
     if (isPortrait) {
-      // In portrait, we fit the Game Width (1000) into Screen Height
-      // and Game Height (400) into Screen Width
       scale = Math.min(screenHeight / WIDTH, screenWidth / HEIGHT);
-      gameContainer.rotation = Math.PI / 2; // Rotate 90 degrees
+      gameContainer.rotation = Math.PI / 2;
     } else {
-      // Standard landscape behavior
       scale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
       gameContainer.rotation = 0;
     }
 
     gameContainer.scale.set(scale);
-
-    // Set Pivot to center of the logical game
     gameContainer.pivot.set(WIDTH / 2, HEIGHT / 2);
-
-    // Position container at center of screen
     gameContainer.x = screenWidth / 2;
     gameContainer.y = screenHeight / 2;
   };
@@ -697,61 +751,40 @@ async function initGame() {
   app.renderer.on("resize", resize);
   resize();
 
-  // Load Sounds
-  // initAudio() is intentionally not called here to avoid blocking execution
-  // waiting for user gesture (Autoplay Policy). It is called on first interaction.
   await cacheAllNoteSounds();
 
-  // Ready to play
   loadingText.visible = false;
   playButton.visible = parsedMelody.length > 0;
   shareButton.visible = playButton.visible;
   openButton.visible = !playButton.visible;
 
   app.ticker.add((ticker) => {
-    if (!isGameActive) return;
+    // Update Camera
+    updateCamera();
 
-    // --- PAUSE LOGIC (Time Manipulation) ---
-    // If WAIT_MODE is true, we calculate an 'effectiveDelta'.
-    // We look for the note closest to the judgment line.
-    // We limit the delta time so that note cannot pass the line.
-    // Since this delta is applied to EVERYTHING (sequencer + physics),
-    // everything stops synchronously.
+    if (!isGameActive) return;
 
     let effectiveDelta = ticker.deltaTime;
 
     if (WAIT_MODE && !isDemoPlaying && activeNotes.length > 0) {
       const hitLineY = pianoKeys[0].y;
-      // We want the bottom of the note (y + NOTE_HEIGHT) to stop at hitLineY
       const stopY = hitLineY - NOTE_HEIGHT;
-
       let minDistance = Infinity;
 
-      // Find the note closest to the stopping point
       for (const n of activeNotes) {
         const dist = stopY - n.y;
-        // We track the smallest distance (closest to line)
         if (dist < minDistance) {
           minDistance = dist;
         }
       }
 
-      // If minDistance is negative, a note is technically slightly past due to float precision,
-      // clamp to 0 to ensure full stop.
       if (minDistance < 0) minDistance = 0;
-
-      // Convert physical distance to time (frames)
-      // distance = speed * time  =>  time = distance / speed
       const maxAllowedDelta = minDistance / SPEED;
 
-      // If the time required to hit the line is LESS than the current frame time,
-      // use that smaller time. This slows down/stops the game exactly at the line.
       if (maxAllowedDelta < effectiveDelta) {
         effectiveDelta = maxAllowedDelta;
       }
     }
-
-    // --- NORMAL GAME LOOP ---
 
     // 1. Melody Sequencer
     if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
@@ -764,14 +797,11 @@ async function initGame() {
           spawnNote(noteData);
         }
 
-        // Use global FRAMES_PER_BEAT
         timeUntilNextNote = noteData.duration * FRAMES_PER_BEAT;
         timeSinceLastNote = 0;
-
         melodyIndex++;
       }
     } else if (parsedMelody.length > 0 && melodyIndex >= parsedMelody.length) {
-      // Only finish if the sequencer is empty AND no notes are left on screen
       if (activeNotes.length === 0 && !isSongFinished) {
         isSongFinished = true;
         setTimeout(() => {
@@ -780,17 +810,14 @@ async function initGame() {
       }
     }
 
-    // 2. Physics (Falling Notes)
-    const hitLineY = pianoKeys[0].y; // Judgment line Y position
+    // 2. Physics
+    const hitLineY = pianoKeys[0].y;
 
     if (isDemoPlaying) {
-      // DEMO MODE: Auto-play notes when they hit the line
       for (let i = activeNotes.length - 1; i >= 0; i--) {
         const n = activeNotes[i];
         n.y += SPEED * effectiveDelta;
 
-        // Note is played when its bottom edge reaches the line,
-        // keeping it visually above the line when triggered.
         if (n.y + NOTE_HEIGHT >= hitLineY) {
           autoPlayNote(n.targetIndex);
           notesContainer.removeChild(n);
@@ -798,34 +825,28 @@ async function initGame() {
         }
       }
     } else {
-      // INTERACTIVE MODE: Standard falling and highlighting logic
       let closestNote = null;
       let closestDist = Infinity;
 
       for (let i = activeNotes.length - 1; i >= 0; i--) {
         const n = activeNotes[i];
         n.y += SPEED * effectiveDelta;
-
-        // Reset to original color by default
         n.tint = n.originalColor;
 
         const missThreshold = hitLineY + 20;
 
-        // Remove missed notes
         if (n.y > missThreshold) {
           notesContainer.removeChild(n);
           activeNotes.splice(i, 1);
-          continue; // Skip distance check for removed note
+          continue;
         }
 
-        // Calculate distance to find the single closest note
         const dist = Math.abs(n.y - hitLineY);
         if (dist < closestDist) {
           closestDist = dist;
           closestNote = n;
         }
       }
-      // Apply highlight only to the nearest note if it is within the HIT_ZONE
       if (closestNote && closestDist < HIT_ZONE) {
         closestNote.tint = COLOR_NOTE_READY;
       }
