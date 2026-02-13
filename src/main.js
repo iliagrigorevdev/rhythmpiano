@@ -523,6 +523,7 @@ function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
   note.targetIndex = index;
   note.active = true;
   note.id = noteData.id;
+  note.duration = noteData.duration;
   note.originalColor = color;
   note.isAccompaniment = isAccompaniment;
 
@@ -596,7 +597,7 @@ function pressKey(index) {
   }
 }
 
-function autoPlayNote(index) {
+function autoPlayNote(index, duration) {
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
 
@@ -604,15 +605,19 @@ function autoPlayNote(index) {
   const audioNode = playNote(keyObj.data.id);
   showHitEffect(keyObj.x, keyObj.y);
 
+  // Calculate duration in ms. unit=1 -> 0.5 beat. BPM is beats/min.
+  const ms = duration * (30000 / BPM);
+  const playDuration = Math.max(ms, 100);
+
   setTimeout(() => {
     keyObj.graphic.tint = keyObj.originalColor;
     if (audioNode) {
       stopNote(audioNode, 1.0);
     }
-  }, 150);
+  }, playDuration);
 }
 
-function playBackingNote(index) {
+function playBackingNote(index, duration) {
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
 
@@ -620,9 +625,11 @@ function playBackingNote(index) {
   const audioNode = playNote(keyObj.data.id);
 
   if (audioNode) {
+    const ms = duration * (30000 / BPM);
+    const playDuration = Math.max(ms, 100);
     setTimeout(() => {
       stopNote(audioNode, 1.0);
-    }, 200);
+    }, playDuration);
   }
 }
 
@@ -907,7 +914,7 @@ async function initGame() {
       // Handle Accompaniment (Always auto-play)
       if (n.isAccompaniment) {
         if (n.y + NOTE_HEIGHT >= hitLineY) {
-          playBackingNote(n.targetIndex);
+          playBackingNote(n.targetIndex, n.duration);
           notesContainer.removeChild(n);
           activeNotes.splice(i, 1);
         }
@@ -917,7 +924,7 @@ async function initGame() {
       // Handle Melody
       if (isDemoPlaying) {
         if (n.y + NOTE_HEIGHT >= hitLineY) {
-          autoPlayNote(n.targetIndex);
+          autoPlayNote(n.targetIndex, n.duration);
           notesContainer.removeChild(n);
           activeNotes.splice(i, 1);
         }
