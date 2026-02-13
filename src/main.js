@@ -170,7 +170,6 @@ function createPiano() {
       rect.on("pointerdown", () => pressKey(index));
       rect.on("pointerup", () => releaseKey(index));
       rect.on("pointerupoutside", () => releaseKey(index));
-      rect.on("pointerleave", () => releaseKey(index));
 
       keysContainer.addChild(rect);
       pianoKeys[index] = {
@@ -206,7 +205,6 @@ function createPiano() {
       rect.on("pointerdown", () => pressKey(index));
       rect.on("pointerup", () => releaseKey(index));
       rect.on("pointerupoutside", () => releaseKey(index));
-      rect.on("pointerleave", () => releaseKey(index));
 
       const hitWidth = WHITE_KEY_WIDTH * 0.9;
       const hitHeight = BLACK_KEY_HEIGHT;
