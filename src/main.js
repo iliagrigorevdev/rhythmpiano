@@ -349,7 +349,8 @@ function createUI() {
 
   playButton.addChild(playBg);
   playButton.addChild(playBtnText);
-  playButton.on("pointerdown", () => {
+  // iOS Fix: Use pointertap
+  playButton.on("pointertap", () => {
     if (DEMO_MODE && !hasDemoPlayed) {
       startDemo();
     } else {
@@ -385,7 +386,8 @@ function createUI() {
 
   openButton.addChild(openBg);
   openButton.addChild(openBtnText);
-  openButton.on("pointerdown", (e) => {
+  // iOS Fix: Use pointertap instead of pointerdown
+  openButton.on("pointertap", (e) => {
     e.stopPropagation();
     fileInput.click();
   });
@@ -412,7 +414,8 @@ function createUI() {
 
   shareButton.addChild(shareBg);
   shareButton.addChild(shareText);
-  shareButton.on("pointerdown", async () => {
+  // iOS Fix: Use pointertap (Navigator.share requires user gesture)
+  shareButton.on("pointertap", async () => {
     let url = window.location.href;
     url = url.replace(/%7E/g, "~");
     if (navigator.share) {
