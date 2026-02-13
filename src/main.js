@@ -83,8 +83,6 @@ const activeNotes = [];
 // UI Elements
 let menuContainer; // Holds Play buttons
 let loadingText;
-let openButton;
-let shareButton;
 
 // Sequencer State (Melody)
 let parsedMelody = [];
@@ -127,8 +125,8 @@ fileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  if (openButton) {
-    openButton.visible = false;
+  if (menuContainer) {
+    menuContainer.visible = false;
   }
   loadingText.text = "Parsing MIDI...";
   loadingText.visible = true;
@@ -302,7 +300,7 @@ function alignCameraToActiveTrack() {
   }
 }
 
-function createButton(text, x, y, onClick, fontSize = 24) {
+function createButton(text, x, y, onClick, size = 60) {
   const container = new PIXI.Container();
   container.x = x;
   container.y = y;
@@ -311,33 +309,32 @@ function createButton(text, x, y, onClick, fontSize = 24) {
 
   const style = {
     fontFamily: "Arial",
-    fontSize: fontSize,
+    fontSize: size * 0.5,
     fill: 0xffffff,
     align: "center",
-    fontWeight: "bold",
-    stroke: { color: 0x000000, width: 2 },
   };
 
   const textObj = new PIXI.Text({ text, style });
   textObj.anchor.set(0.5);
 
-  const paddingX = 40;
-  const paddingY = 20;
-
   const bg = new PIXI.Graphics();
-  bg.roundRect(
-    -textObj.width / 2 - paddingX / 2,
-    -textObj.height / 2 - paddingY / 2,
-    textObj.width + paddingX,
-    textObj.height + paddingY,
-    10,
-  );
-  bg.fill({ color: 0x000000, alpha: 0.8 });
-  bg.stroke({ width: 2, color: 0xffffff });
+  bg.roundRect(-size / 2, -size / 2, size, size, 12);
+  bg.fill({ color: 0x333333, alpha: 0.9 });
+  bg.stroke({ width: 3, color: 0xffffff });
 
   container.addChild(bg);
   container.addChild(textObj);
   container.on("pointertap", onClick);
+
+  // Hover effect
+  container.on("pointerover", () => {
+    bg.fill({ color: 0x555555, alpha: 1.0 });
+    container.scale.set(1.1);
+  });
+  container.on("pointerout", () => {
+    bg.fill({ color: 0x333333, alpha: 0.9 });
+    container.scale.set(1.0);
+  });
 
   return container;
 }
@@ -363,69 +360,45 @@ function createUI() {
   menuContainer.visible = false;
   uiContainer.addChild(menuContainer);
 
-  const hasAccompaniment = parsedAccompaniment.length > 0;
+  const buttonConfigs = [];
 
-  if (hasAccompaniment) {
-    // Button 1: Play Melody
-    const btnMelody = createButton(
-      "▶️ Play Melody",
-      WIDTH / 2 - 150,
-      HEIGHT / 2 - 100,
-      () => {
+  // 1. Play Melody (🎵)
+  if (parsedMelody.length > 0) {
+    buttonConfigs.push({
+      text: "🎵",
+      onClick: () => {
         selectedTrackType = "melody";
         if (DEMO_MODE && !hasDemoPlayed) startDemo();
         else resetGame();
       },
-    );
-    menuContainer.addChild(btnMelody);
+    });
+  }
 
-    // Button 2: Play Accompaniment
-    const btnAccomp = createButton(
-      "▶️ Play Accompaniment",
-      WIDTH / 2 + 150,
-      HEIGHT / 2 - 100,
-      () => {
+  // 2. Play Accompaniment (🎹)
+  if (parsedAccompaniment.length > 0) {
+    buttonConfigs.push({
+      text: "🎹",
+      onClick: () => {
         selectedTrackType = "accompaniment";
         if (DEMO_MODE && !hasDemoPlayed) startDemo();
         else resetGame();
       },
-    );
-    menuContainer.addChild(btnAccomp);
-  } else {
-    // Single Button
-    const btnPlay = createButton(
-      "▶️ Play Melody",
-      WIDTH / 2,
-      HEIGHT / 2 - 100,
-      () => {
-        selectedTrackType = "melody";
-        if (DEMO_MODE && !hasDemoPlayed) startDemo();
-        else resetGame();
-      },
-    );
-    menuContainer.addChild(btnPlay);
+    });
   }
 
-  // Open Button
-  openButton = createButton(
-    "📂 Open MIDI File",
-    WIDTH / 2,
-    HEIGHT / 2 - 100,
-    (e) => {
+  // 3. Load MIDI (📂) - Always present in menu
+  buttonConfigs.push({
+    text: "📂",
+    onClick: (e) => {
       e.stopPropagation();
       fileInput.click();
     },
-    20, // Smaller font
-  );
-  openButton.visible = false; // Managed by menu logic
-  uiContainer.addChild(openButton);
+  });
 
-  // Share Button
-  shareButton = createButton(
-    "🔗",
-    WIDTH / 2,
-    HEIGHT / 2 - 35,
-    async () => {
+  // 4. Share (🔗) - Always present in menu
+  buttonConfigs.push({
+    text: "🔗",
+    onClick: async () => {
       let url = window.location.href;
       url = url.replace(/%7E/g, "~");
       if (navigator.share) {
@@ -439,10 +412,27 @@ function createUI() {
         } catch (err) {}
       }
     },
-    30,
-  );
-  shareButton.visible = false;
-  uiContainer.addChild(shareButton);
+  });
+
+  // Calculate layout to center items
+  const btnSize = 70;
+  const gap = 20;
+  const totalWidth =
+    buttonConfigs.length * btnSize + (buttonConfigs.length - 1) * gap;
+  let currentX = WIDTH / 2 - totalWidth / 2 + btnSize / 2;
+  const yPos = HEIGHT / 2 - 100;
+
+  buttonConfigs.forEach((config) => {
+    const btn = createButton(
+      config.text,
+      currentX,
+      yPos,
+      config.onClick,
+      btnSize,
+    );
+    menuContainer.addChild(btn);
+    currentX += btnSize + gap;
+  });
 }
 
 // --- GAME LOGIC ---
@@ -465,8 +455,6 @@ function resetGame() {
   activeNotes.length = 0;
 
   menuContainer.visible = false;
-  openButton.visible = false;
-  shareButton.visible = false;
 
   // Align camera to the selected track range
   alignCameraToActiveTrack();
@@ -495,8 +483,6 @@ function startDemo() {
   activeNotes.length = 0;
 
   menuContainer.visible = false;
-  openButton.visible = false;
-  shareButton.visible = false;
 
   alignCameraToActiveTrack();
 
@@ -507,8 +493,6 @@ function startDemo() {
 function resetToMenu() {
   isGameActive = false;
   menuContainer.visible = true;
-  openButton.visible = true;
-  shareButton.visible = true;
 }
 
 function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
@@ -553,8 +537,11 @@ function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
 }
 
 function pressKey(index) {
-  if (!isGameActive && !loadingText.visible && !openButton.visible) {
-    resetGame();
+  if (!isGameActive && !loadingText.visible) {
+    // If clicking piano keys while menu is open (and song is loaded), start game
+    if (parsedMelody.length > 0) {
+      resetGame();
+    }
     return;
   }
 
@@ -823,9 +810,8 @@ async function initGame() {
   await cacheAllNoteSounds();
 
   loadingText.visible = false;
-  menuContainer.visible = parsedMelody.length > 0;
-  shareButton.visible = menuContainer.visible;
-  openButton.visible = !menuContainer.visible;
+  // Show menu (buttons) if melody exists OR just to show load button initially
+  menuContainer.visible = true;
 
   app.ticker.add((ticker) => {
     // Update Camera
