@@ -18,8 +18,6 @@ const HEIGHT = 400;
 const urlParams = new URLSearchParams(window.location.search);
 const BPM = parseInt(urlParams.get("bpm")) || 100;
 const SPEED = parseInt(urlParams.get("speed")) || 4;
-const WAIT_MODE = urlParams.get("wait") !== "false";
-// DEMO_MODE removed
 
 const START_NOTE = "A0";
 const END_NOTE = "C8";
@@ -98,6 +96,7 @@ let timeUntilNextAccomp = 0;
 
 let isGameActive = false;
 let isSongFinished = false;
+let isWaitMode = true;
 
 // Game State
 let isDemoPlaying = false;
@@ -243,18 +242,12 @@ function createPiano() {
   });
 }
 
-// Helper to center camera immediately, snapping to grid
 function centerCameraOnIndex(index, immediate = false) {
   if (!pianoKeys[index]) return;
   const keyX = pianoKeys[index].x;
-
-  // Calculate center position
   let rawTarget = -keyX + WIDTH / 2;
-
-  // Snap to grid
   targetCameraX = Math.round(rawTarget / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
 
-  // Clamp
   const maxScroll = -(TOTAL_PIANO_WIDTH - WIDTH);
   if (targetCameraX > 0) targetCameraX = 0;
   if (targetCameraX < maxScroll)
@@ -265,7 +258,6 @@ function centerCameraOnIndex(index, immediate = false) {
   }
 }
 
-// Helper to center camera based on the range of notes used in the active track
 function alignCameraToActiveTrack() {
   const activeTrack =
     selectedTrackType === "melody" ? parsedMelody : parsedAccompaniment;
@@ -291,7 +283,6 @@ function alignCameraToActiveTrack() {
   });
 
   if (found) {
-    // Find the midpoint index between the lowest and highest note used
     const midIndex = Math.floor((minIndex + maxIndex) / 2);
     centerCameraOnIndex(midIndex, true);
   } else {
@@ -299,12 +290,30 @@ function alignCameraToActiveTrack() {
   }
 }
 
-function createButton(text, x, y, onClick, size = 60) {
+/**
+ * Creates a button with support for dynamic color updates.
+ */
+function createButton(text, x, y, onClick, size = 60, initialColor = 0x333333) {
   const container = new PIXI.Container();
   container.x = x;
   container.y = y;
   container.eventMode = "static";
   container.cursor = "pointer";
+  container.baseColor = initialColor;
+
+  const bg = new PIXI.Graphics();
+  container.addChild(bg);
+
+  // Helper function to redraw the background
+  const render = (color, alpha) => {
+    bg.clear();
+    bg.roundRect(-size / 2, -size / 2, size, size, 12);
+    bg.fill({ color: color, alpha: alpha });
+    bg.stroke({ width: 3, color: 0xffffff });
+  };
+
+  // Initial Draw
+  render(initialColor, 0.9);
 
   const style = {
     fontFamily: "Arial",
@@ -315,23 +324,22 @@ function createButton(text, x, y, onClick, size = 60) {
 
   const textObj = new PIXI.Text({ text, style });
   textObj.anchor.set(0.5);
-
-  const bg = new PIXI.Graphics();
-  bg.roundRect(-size / 2, -size / 2, size, size, 12);
-  bg.fill({ color: 0x333333, alpha: 0.9 });
-  bg.stroke({ width: 3, color: 0xffffff });
-
-  container.addChild(bg);
   container.addChild(textObj);
-  container.on("pointertap", onClick);
 
-  // Hover effect
+  // Expose method to update color externally
+  container.updateColor = (color) => {
+    container.baseColor = color;
+    render(color, 1.0);
+  };
+
+  container.on("pointertap", (e) => onClick(e, container));
+
   container.on("pointerover", () => {
-    bg.fill({ color: 0x555555, alpha: 1.0 });
+    render(container.baseColor, 1.0);
     container.scale.set(1.1);
   });
   container.on("pointerout", () => {
-    bg.fill({ color: 0x333333, alpha: 0.9 });
+    render(container.baseColor, 0.9);
     container.scale.set(1.0);
   });
 
@@ -394,7 +402,7 @@ function createUI() {
     });
   }
 
-  // 4. Load MIDI (📂) - Always present in menu
+  // 4. Load MIDI (📂)
   buttonConfigs.push({
     text: "📂",
     onClick: (e) => {
@@ -403,7 +411,21 @@ function createUI() {
     },
   });
 
-  // 5. Share (🔗) - Always present in menu
+  // 5. Wait Mode Toggle (⏳)
+  buttonConfigs.push({
+    text: "⏳",
+    isToggle: true,
+    onClick: (e, btnContainer) => {
+      e.stopPropagation();
+      isWaitMode = !isWaitMode;
+
+      // Update Visuals by redrawing
+      const newColor = isWaitMode ? 0x2e8b57 : 0x8b0000; // Green vs Red
+      btnContainer.updateColor(newColor);
+    },
+  });
+
+  // 6. Share (🔗)
   buttonConfigs.push({
     text: "🔗",
     onClick: async () => {
@@ -431,12 +453,18 @@ function createUI() {
   const yPos = HEIGHT / 2 - 100;
 
   buttonConfigs.forEach((config) => {
+    let initialColor = 0x333333;
+    if (config.isToggle) {
+      initialColor = isWaitMode ? 0x2e8b57 : 0x8b0000; // Green / Red
+    }
+
     const btn = createButton(
       config.text,
       currentX,
       yPos,
       config.onClick,
       btnSize,
+      initialColor,
     );
     menuContainer.addChild(btn);
     currentX += btnSize + gap;
@@ -448,8 +476,6 @@ function resetGame() {
   melodyIndex = 0;
   timeSinceLastNote = 0;
   timeUntilNextNote = 0;
-
-  // Reset accompaniment
   accompIndex = 0;
   timeSinceLastAccomp = 0;
   timeUntilNextAccomp = 0;
@@ -463,10 +489,7 @@ function resetGame() {
   activeNotes.length = 0;
 
   menuContainer.visible = false;
-
-  // Align camera to the selected track range
   alignCameraToActiveTrack();
-
   initAudio();
   isGameActive = true;
 }
@@ -475,8 +498,6 @@ function startDemo() {
   melodyIndex = 0;
   timeSinceLastNote = 0;
   timeUntilNextNote = 0;
-
-  // Reset accompaniment
   accompIndex = 0;
   timeSinceLastAccomp = 0;
   timeUntilNextAccomp = 0;
@@ -490,9 +511,7 @@ function startDemo() {
   activeNotes.length = 0;
 
   menuContainer.visible = false;
-
   alignCameraToActiveTrack();
-
   initAudio();
   isGameActive = true;
 }
@@ -525,7 +544,6 @@ function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
   note.tint = color;
 
   note.x = targetKey.x;
-  // Offset Y by the time overflow to prevent overlapping notes in same frame
   note.y = -100 + offsetFrames * SPEED;
   note.targetIndex = index;
   note.active = true;
@@ -534,7 +552,6 @@ function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
   note.originalColor = color;
   note.isAccompaniment = isAccompaniment;
 
-  // Accompaniment notes are part of activeNotes for timing/physics, but invisible
   if (isAccompaniment) {
     note.visible = false;
   }
@@ -545,7 +562,6 @@ function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
 
 function pressKey(index) {
   if (!isGameActive && !loadingText.visible) {
-    // If clicking piano keys while menu is open (and song is loaded), start game
     if (parsedMelody.length > 0) {
       resetGame();
     }
@@ -567,7 +583,6 @@ function pressKey(index) {
   const hitLineY = keyObj.y;
   let minGlobalDistance = Infinity;
 
-  // Filter out accompaniment from user interaction check
   for (const n of activeNotes) {
     if (n.active && !n.isAccompaniment) {
       const dist = Math.abs(n.y - hitLineY);
@@ -585,7 +600,6 @@ function pressKey(index) {
 
   for (let i = 0; i < activeNotes.length; i++) {
     const n = activeNotes[i];
-    // Ignore accompaniment notes for user hitting
     if (n.targetIndex === index && n.active && !n.isAccompaniment) {
       const dist = Math.abs(n.y - hitLineY);
       if (dist < HIT_ZONE) {
@@ -615,7 +629,6 @@ function autoPlayNote(index, duration) {
   const audioNode = playNote(keyObj.data.id);
   showHitEffect(keyObj.x, keyObj.y);
 
-  // Calculate duration in ms. unit=1 -> 0.5 beat. BPM is beats/min.
   const ms = duration * (30000 / BPM);
   const playDuration = Math.max(ms, 100);
 
@@ -630,10 +643,7 @@ function autoPlayNote(index, duration) {
 function playBackingNote(index, duration) {
   const keyObj = pianoKeys[index];
   if (!keyObj) return;
-
-  // Play audio but don't flash key or show hit effect
   const audioNode = playNote(keyObj.data.id);
-
   if (audioNode) {
     const ms = duration * (30000 / BPM);
     const playDuration = Math.max(ms, 100);
@@ -659,7 +669,6 @@ function showHitEffect(x, y) {
   burst.fill({ color: 0xffffff, alpha: 0.6 });
   burst.x = x;
   burst.y = y;
-  // Add to worldContainer so it moves with the piano
   worldContainer.addChild(burst);
 
   let tick = 0;
@@ -676,20 +685,16 @@ function showHitEffect(x, y) {
   app.ticker.add(animate);
 }
 
-// --- UPDATE CAMERA LOGIC ---
 function updateCamera() {
   if (!isGameActive) return;
 
-  // 1. Identify "Nearest Relevant Note"
   let relevantKeyX = null;
 
   if (activeNotes.length > 0) {
-    // Find closest note to bottom, ignoring accompaniment if desired (or keep it if backing track defines view)
     let maxY = -Infinity;
     let bottomNote = null;
 
     for (const n of activeNotes) {
-      // Ignore accompaniment for camera logic to focus on user notes
       if (n.y > maxY && !n.isAccompaniment) {
         maxY = n.y;
         bottomNote = n;
@@ -699,8 +704,6 @@ function updateCamera() {
       relevantKeyX = bottomNote.x;
     }
   } else {
-    // Look ahead if no active notes
-    // Determine which sequencer to look at
     const isMelodyActive = selectedTrackType === "melody";
     const currentList = isMelodyActive ? parsedMelody : parsedAccompaniment;
     const currentIndex = isMelodyActive ? melodyIndex : accompIndex;
@@ -715,46 +718,33 @@ function updateCamera() {
   }
 
   if (relevantKeyX !== null) {
-    // Current snaps
     const currentTargetX = targetCameraX;
-
-    // Predicted screen position of the note
     const predictedScreenX = relevantKeyX + currentTargetX;
-
-    // Margin: 1.5 keys from edge
     const margin = WHITE_KEY_WIDTH * 1.5;
 
-    let needsShift = false;
     let rawNewTarget = currentTargetX;
 
-    // Check Left Bound
     if (predictedScreenX < margin) {
       rawNewTarget = margin - relevantKeyX;
       targetCameraX =
         Math.ceil(rawNewTarget / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
-    }
-    // Check Right Bound
-    else if (predictedScreenX > WIDTH - margin) {
+    } else if (predictedScreenX > WIDTH - margin) {
       rawNewTarget = WIDTH - margin - relevantKeyX;
       targetCameraX =
         Math.floor(rawNewTarget / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
     }
   }
 
-  // Clamp world bounds
   const maxScroll = -(TOTAL_PIANO_WIDTH - WIDTH);
-  // Ensure strict clamp to grid
   const maxScrollSnapped =
     Math.floor(maxScroll / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
 
   if (targetCameraX > 0) targetCameraX = 0;
   if (targetCameraX < maxScrollSnapped) targetCameraX = maxScrollSnapped;
 
-  // Smooth movement
   worldContainer.x += (targetCameraX - worldContainer.x) * 0.05;
 }
 
-// --- INITIALIZATION ---
 async function initGame() {
   await app.init({
     resizeTo: window,
@@ -786,7 +776,6 @@ async function initGame() {
   createPiano();
   createUI();
 
-  // Initial alignment
   alignCameraToActiveTrack();
 
   const resize = () => {
@@ -817,24 +806,21 @@ async function initGame() {
   await cacheAllNoteSounds();
 
   loadingText.visible = false;
-  // Show menu (buttons) if melody exists OR just to show load button initially
   menuContainer.visible = true;
 
   app.ticker.add((ticker) => {
-    // Update Camera
     updateCamera();
 
     if (!isGameActive) return;
 
     let effectiveDelta = ticker.deltaTime;
 
-    if (WAIT_MODE && !isDemoPlaying && activeNotes.length > 0) {
+    if (isWaitMode && !isDemoPlaying && activeNotes.length > 0) {
       const hitLineY = pianoKeys[0].y;
       const stopY = hitLineY - NOTE_HEIGHT;
       let minDistance = Infinity;
 
       for (const n of activeNotes) {
-        // Only active user notes cause waiting
         if (!n.isAccompaniment) {
           const dist = stopY - n.y;
           if (dist < minDistance) {
@@ -851,10 +837,8 @@ async function initGame() {
       }
     }
 
-    // Determine roles based on user selection
     const isMelodyInteractive = selectedTrackType === "melody";
 
-    // 1. Melody Sequencer
     if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
       timeSinceLastNote += effectiveDelta;
 
@@ -862,24 +846,17 @@ async function initGame() {
         timeSinceLastNote >= timeUntilNextNote &&
         melodyIndex < parsedMelody.length
       ) {
-        timeSinceLastNote -= timeUntilNextNote; // Subtract to preserve overflow (accuracy)
-
+        timeSinceLastNote -= timeUntilNextNote;
         const noteData = parsedMelody[melodyIndex];
-
         if (noteData.id !== null) {
-          // If Melody is selected track, isAccompaniment = false. Else true.
           spawnNote(noteData, !isMelodyInteractive, timeSinceLastNote);
         }
-
         timeUntilNextNote = noteData.duration * FRAMES_PER_BEAT;
         melodyIndex++;
-
-        // Safety break for zero-duration loops
         if (timeUntilNextNote <= 0) timeUntilNextNote = 0.1;
       }
     }
 
-    // 2. Accompaniment Sequencer
     if (
       parsedAccompaniment.length > 0 &&
       accompIndex < parsedAccompaniment.length
@@ -891,23 +868,16 @@ async function initGame() {
         accompIndex < parsedAccompaniment.length
       ) {
         timeSinceLastAccomp -= timeUntilNextAccomp;
-
         const noteData = parsedAccompaniment[accompIndex];
-
         if (noteData.id !== null) {
-          // If Melody is selected track, Accomp isAccompaniment = true.
-          // If Accomp is selected track, Accomp isAccompaniment = false.
           spawnNote(noteData, isMelodyInteractive, timeSinceLastAccomp);
         }
-
         timeUntilNextAccomp = noteData.duration * FRAMES_PER_BEAT;
         accompIndex++;
-
         if (timeUntilNextAccomp <= 0) timeUntilNextAccomp = 0.1;
       }
     }
 
-    // Check end of song
     const melodyEnded = melodyIndex >= parsedMelody.length;
     const accompEnded =
       parsedAccompaniment.length === 0 ||
@@ -922,24 +892,21 @@ async function initGame() {
       }
     }
 
-    // 3. Physics & Hit Logic
     const hitLineY = pianoKeys[0].y;
 
     for (let i = activeNotes.length - 1; i >= 0; i--) {
       const n = activeNotes[i];
       n.y += SPEED * effectiveDelta;
 
-      // Handle Background Tracks (Always auto-play)
       if (n.isAccompaniment) {
         if (n.y + NOTE_HEIGHT >= hitLineY) {
           playBackingNote(n.targetIndex, n.duration);
           notesContainer.removeChild(n);
           activeNotes.splice(i, 1);
         }
-        continue; // Skip rest of logic for backing tracks
+        continue;
       }
 
-      // Handle Active User Notes
       if (isDemoPlaying) {
         if (n.y + NOTE_HEIGHT >= hitLineY) {
           autoPlayNote(n.targetIndex, n.duration);
@@ -947,7 +914,6 @@ async function initGame() {
           activeNotes.splice(i, 1);
         }
       } else {
-        // Game Mode
         n.tint = n.originalColor;
         const missThreshold = hitLineY + 20;
 
@@ -958,7 +924,6 @@ async function initGame() {
         }
 
         const dist = Math.abs(n.y - hitLineY);
-        // Highlight if in hit zone
         if (dist < HIT_ZONE) {
           n.tint = COLOR_NOTE_READY;
         }

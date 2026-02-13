@@ -12,7 +12,7 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 - **Accompaniment Track**: The app can load a secondary track from a MIDI file, which plays automatically in the background, allowing you to play the main melody along with a backing track.
 - **▶️ Demo Mode**: Click the Play button in the menu to watch the melody play automatically before you try it yourself.
 - **📂 MIDI File Import**: Convert local `.mid` files into playable levels. The app automatically separates the melody (first track, highest note in chords) and accompaniment (second track, lowest note in chords).
-- **⏳ Wait Mode**: By default, the game pauses if a note reaches the line but hasn't been played, allowing you to learn the melody at your own pace.
+- **⏳ Wait Mode**: Toggleable via the menu. By default, the game pauses if a note reaches the line but hasn't been played, allowing you to learn the melody at your own pace.
 - **Auto-Scrolling Camera**: The view automatically pans to follow the active notes, ensuring the next keys you need are always in sight.
 - **Piano Range**: The interactive piano covers the full 88-key range of a grand piano (A0 to C8).
 - **Sample-Based Audio**: Uses realistic SFZ piano samples (Salamander Grand Piano) with dynamic pitch shifting for high performance.
@@ -29,6 +29,7 @@ When a song is loaded, the following options are available:
 - **🎹 Play Accompaniment**: Start the game with the accompaniment track as the active part. The melody will play automatically.
 - **▶️ Demo Play**: Watch the song play automatically.
 - **📂 Open MIDI File**: Opens a file dialog to import a new `.mid` file.
+- **⏳ Wait Mode**: Toggle the wait mechanic. Green (enabled) pauses the game for missed notes; Red (disabled) lets the song continue flowing.
 - **🔗 Share**: Copies the full URL (including the song) to your clipboard for easy sharing.
 
 If no song is loaded, only the **"📂 Open MIDI File"** button is shown.
@@ -48,13 +49,12 @@ You can load your own `.mid` files to create levels automatically.
 
 You can manually configure levels by modifying the URL.
 
-| Parameter       | Description                                                    | Default |
-| :-------------- | :------------------------------------------------------------- | :------ |
-| `bpm`           | Beats per minute.                                              | `100`   |
-| `speed`         | Falling speed of notes in pixels per frame.                    | `4`     |
-| `wait`          | `true` pauses game if note is missed. `false` lets notes pass. | `true`  |
-| `melody`        | The encoded note sequence for the melody track.                | `""`    |
-| `accompaniment` | The encoded note sequence for the accompaniment track.         | `""`    |
+| Parameter       | Description                                            | Default |
+| :-------------- | :----------------------------------------------------- | :------ |
+| `bpm`           | Beats per minute.                                      | `100`   |
+| `speed`         | Falling speed of notes in pixels per frame.            | `4`     |
+| `melody`        | The encoded note sequence for the melody track.        | `""`    |
+| `accompaniment` | The encoded note sequence for the accompaniment track. | `""`    |
 
 ### Melody Syntax
 
