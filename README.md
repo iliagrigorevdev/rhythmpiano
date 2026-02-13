@@ -45,7 +45,7 @@ The app uses a custom parser (`src/parser.js`) that reads a simplified ABC-like 
 
 - **Notes**: `C`, `D`, `E`, `F`, `G`, `A`, `B`.
 - **Accidentals**: `_` (Flat).
-- **Octaves**: `C` (C4/Middle C), `c` (C5), `C.` (C3).
+- **Octaves**: `C` (C4/Middle C), `c` (C5), `C.` (C3), `--c` (C7).
 - **Duration**: Number relative to an 8th note. `~` allows fractions (e.g., `3~2`).
 - **Rests**: `z`.
 

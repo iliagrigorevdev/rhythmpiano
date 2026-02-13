@@ -223,7 +223,8 @@ function getABCNoteName(midi) {
   } else {
     finalName = baseName.toLowerCase();
     const diff = octaveIndex - 5;
-    for (let i = 0; i < diff; i++) finalName += "'";
+    // Use '-' for higher octaves in URL (replaced back to ' in parser)
+    for (let i = 0; i < diff; i++) finalName += "-";
   }
 
   return finalName;
