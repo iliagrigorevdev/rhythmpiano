@@ -13,7 +13,6 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 - **📂 MIDI File Import**: Convert local `.mid` files into playable levels instantly. The app parses the MIDI client-side and updates the URL.
 - **⏳ Wait Mode**: By default, the game pauses if a note reaches the line but hasn't been played, allowing you to learn the melody at your own pace.
 - **Piano Range**: The interactive piano spans over 3 octaves (C3 to B5).
-- **PC Keyboard Support**: Play using your computer keyboard with a standard DAW-style layout (e.g., `A`, `S`, `D` for white keys; `W`, `E` for black keys).
 - **Sample-Based Audio**: Uses realistic SFZ piano samples (Salamander Grand Piano) with dynamic pitch shifting for high performance.
 - **URL-Based Level Sharing**: Melodies, BPM, and scroll speed are encoded entirely in the URL.
 - **Responsive Design**: Scales to fit desktop and mobile screens.
