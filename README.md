@@ -10,7 +10,7 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 
 - **Rhythm Game Mode**: Hit the keys when the falling notes reach the red judgment line. You can play either the melody or the accompaniment track.
 - **Accompaniment Track**: The app can load a secondary track from a MIDI file, which plays automatically in the background, allowing you to play the main melody along with a backing track.
-- **▶️ Demo Mode**: Add `?demo=true` to the URL to watch the melody play automatically before you try it yourself.
+- **▶️ Demo Mode**: Click the Play button in the menu to watch the melody play automatically before you try it yourself.
 - **📂 MIDI File Import**: Convert local `.mid` files into playable levels. The app automatically separates the melody (first track, highest note in chords) and accompaniment (second track, lowest note in chords).
 - **⏳ Wait Mode**: By default, the game pauses if a note reaches the line but hasn't been played, allowing you to learn the melody at your own pace.
 - **Auto-Scrolling Camera**: The view automatically pans to follow the active notes, ensuring the next keys you need are always in sight.
@@ -27,6 +27,7 @@ When a song is loaded, the following options are available:
 
 - **🎵 Play Melody**: Start the game with the melody track as the active (playable) part. The accompaniment will play automatically in the background.
 - **🎹 Play Accompaniment**: Start the game with the accompaniment track as the active part. The melody will play automatically.
+- **▶️ Demo Play**: Watch the song play automatically.
 - **📂 Open MIDI File**: Opens a file dialog to import a new `.mid` file.
 - **🔗 Share**: Copies the full URL (including the song) to your clipboard for easy sharing.
 
@@ -52,7 +53,6 @@ You can manually configure levels by modifying the URL.
 | `bpm`           | Beats per minute.                                              | `100`   |
 | `speed`         | Falling speed of notes in pixels per frame.                    | `4`     |
 | `wait`          | `true` pauses game if note is missed. `false` lets notes pass. | `true`  |
-| `demo`          | `true` enables an auto-play demo before the game.              | `false` |
 | `melody`        | The encoded note sequence for the melody track.                | `""`    |
 | `accompaniment` | The encoded note sequence for the accompaniment track.         | `""`    |
 

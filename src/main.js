@@ -19,7 +19,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const BPM = parseInt(urlParams.get("bpm")) || 100;
 const SPEED = parseInt(urlParams.get("speed")) || 4;
 const WAIT_MODE = urlParams.get("wait") !== "false";
-const DEMO_MODE = urlParams.get("demo") === "true";
+// DEMO_MODE removed
 
 const START_NOTE = "A0";
 const END_NOTE = "C8";
@@ -101,7 +101,6 @@ let isSongFinished = false;
 
 // Game State
 let isDemoPlaying = false;
-let hasDemoPlayed = false;
 let selectedTrackType = "melody"; // 'melody' or 'accompaniment'
 
 // Camera State
@@ -368,8 +367,7 @@ function createUI() {
       text: "🎵",
       onClick: () => {
         selectedTrackType = "melody";
-        if (DEMO_MODE && !hasDemoPlayed) startDemo();
-        else resetGame();
+        resetGame();
       },
     });
   }
@@ -380,13 +378,23 @@ function createUI() {
       text: "🎹",
       onClick: () => {
         selectedTrackType = "accompaniment";
-        if (DEMO_MODE && !hasDemoPlayed) startDemo();
-        else resetGame();
+        resetGame();
       },
     });
   }
 
-  // 3. Load MIDI (📂) - Always present in menu
+  // 3. Demo Play (▶️)
+  if (parsedMelody.length > 0) {
+    buttonConfigs.push({
+      text: "▶️",
+      onClick: () => {
+        selectedTrackType = "melody";
+        startDemo();
+      },
+    });
+  }
+
+  // 4. Load MIDI (📂) - Always present in menu
   buttonConfigs.push({
     text: "📂",
     onClick: (e) => {
@@ -395,7 +403,7 @@ function createUI() {
     },
   });
 
-  // 4. Share (🔗) - Always present in menu
+  // 5. Share (🔗) - Always present in menu
   buttonConfigs.push({
     text: "🔗",
     onClick: async () => {
@@ -475,7 +483,6 @@ function startDemo() {
 
   isSongFinished = false;
   isDemoPlaying = true;
-  hasDemoPlayed = true;
 
   for (const note of activeNotes) {
     notesContainer.removeChild(note);
