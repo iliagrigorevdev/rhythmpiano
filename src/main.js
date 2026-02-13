@@ -39,6 +39,14 @@ const getMelody = () => {
   return "";
 };
 
+const getAccompaniment = () => {
+  const urlAccomp = urlParams.get("accompaniment");
+  if (urlAccomp) {
+    return decodeURIComponent(urlAccomp);
+  }
+  return "";
+};
+
 const NOTES_DATA = Object.values(generateNoteRange(START_NOTE, END_NOTE)).map(
   (note) => ({
     id: note,
@@ -78,11 +86,18 @@ let loadingText;
 let openButton;
 let shareButton;
 
-// Sequencer State
+// Sequencer State (Melody)
 let parsedMelody = [];
 let melodyIndex = 0;
 let timeSinceLastNote = 0;
 let timeUntilNextNote = 0;
+
+// Sequencer State (Accompaniment)
+let parsedAccompaniment = [];
+let accompIndex = 0;
+let timeSinceLastAccomp = 0;
+let timeUntilNextAccomp = 0;
+
 let isGameActive = false;
 let isSongFinished = false;
 
@@ -122,7 +137,7 @@ fileInput.addEventListener("change", async (e) => {
     const minMidi = noteNameToMidi(START_NOTE);
     const maxMidi = noteNameToMidi(END_NOTE);
 
-    const { bpm, melody } = await convertMidiToUrlData(
+    const { bpm, melody, accompaniment } = await convertMidiToUrlData(
       arrayBuffer,
       minMidi,
       maxMidi,
@@ -131,6 +146,11 @@ fileInput.addEventListener("change", async (e) => {
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set("bpm", bpm);
     newUrl.searchParams.set("melody", melody);
+    if (accompaniment) {
+      newUrl.searchParams.set("accompaniment", accompaniment);
+    } else {
+      newUrl.searchParams.delete("accompaniment");
+    }
     window.location.href = newUrl.toString();
   } catch (err) {
     console.error(err);
@@ -414,6 +434,12 @@ function resetGame() {
   melodyIndex = 0;
   timeSinceLastNote = 0;
   timeUntilNextNote = 0;
+
+  // Reset accompaniment
+  accompIndex = 0;
+  timeSinceLastAccomp = 0;
+  timeUntilNextAccomp = 0;
+
   isSongFinished = false;
   isDemoPlaying = false;
 
@@ -437,6 +463,12 @@ function startDemo() {
   melodyIndex = 0;
   timeSinceLastNote = 0;
   timeUntilNextNote = 0;
+
+  // Reset accompaniment
+  accompIndex = 0;
+  timeSinceLastAccomp = 0;
+  timeUntilNextAccomp = 0;
+
   isSongFinished = false;
   isDemoPlaying = true;
   hasDemoPlayed = true;
@@ -463,7 +495,7 @@ function resetToMenu() {
   shareButton.visible = true;
 }
 
-function spawnNote(noteData) {
+function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
   const index = NOTES_DATA.findIndex((n) => n.id === noteData.id);
   if (index === -1) return;
 
@@ -486,11 +518,18 @@ function spawnNote(noteData) {
   note.tint = color;
 
   note.x = targetKey.x;
-  note.y = -100;
+  // Offset Y by the time overflow to prevent overlapping notes in same frame
+  note.y = -100 + offsetFrames * SPEED;
   note.targetIndex = index;
   note.active = true;
   note.id = noteData.id;
   note.originalColor = color;
+  note.isAccompaniment = isAccompaniment;
+
+  // Accompaniment notes are part of activeNotes for timing/physics, but invisible
+  if (isAccompaniment) {
+    note.visible = false;
+  }
 
   notesContainer.addChild(note);
   activeNotes.push(note);
@@ -517,8 +556,9 @@ function pressKey(index) {
   const hitLineY = keyObj.y;
   let minGlobalDistance = Infinity;
 
+  // Filter out accompaniment from user interaction check
   for (const n of activeNotes) {
-    if (n.active) {
+    if (n.active && !n.isAccompaniment) {
       const dist = Math.abs(n.y - hitLineY);
       if (dist < minGlobalDistance) {
         minGlobalDistance = dist;
@@ -534,7 +574,8 @@ function pressKey(index) {
 
   for (let i = 0; i < activeNotes.length; i++) {
     const n = activeNotes[i];
-    if (n.targetIndex === index && n.active) {
+    // Ignore accompaniment notes for user hitting
+    if (n.targetIndex === index && n.active && !n.isAccompaniment) {
       const dist = Math.abs(n.y - hitLineY);
       if (dist < HIT_ZONE) {
         if (dist <= minGlobalDistance + CHORD_TOLERANCE) {
@@ -569,6 +610,20 @@ function autoPlayNote(index) {
       stopNote(audioNode, 1.0);
     }
   }, 150);
+}
+
+function playBackingNote(index) {
+  const keyObj = pianoKeys[index];
+  if (!keyObj) return;
+
+  // Play audio but don't flash key or show hit effect
+  const audioNode = playNote(keyObj.data.id);
+
+  if (audioNode) {
+    setTimeout(() => {
+      stopNote(audioNode, 1.0);
+    }, 200);
+  }
 }
 
 function releaseKey(index) {
@@ -612,12 +667,14 @@ function updateCamera() {
   let relevantKeyX = null;
 
   if (activeNotes.length > 0) {
-    // Find closest note to bottom
+    // Find closest note to bottom, ignoring accompaniment if desired (or keep it if backing track defines view)
+    // Let's ignore backing track for camera focus so it follows the player's notes
     let maxY = -Infinity;
     let bottomNote = null;
 
     for (const n of activeNotes) {
-      if (n.y > maxY) {
+      // Ignore accompaniment for camera logic to focus on melody
+      if (n.y > maxY && !n.isAccompaniment) {
         maxY = n.y;
         bottomNote = n;
       }
@@ -649,29 +706,13 @@ function updateCamera() {
 
     // Check Left Bound
     if (predictedScreenX < margin) {
-      // Note is too far Left. Move view Right (increase worldX, make less negative/more positive)
-      // predicted = relevant + newTarget >= margin
-      // newTarget >= margin - relevant
-      // To be minimal, we set it to exactly margin - relevant
       rawNewTarget = margin - relevantKeyX;
-
-      // Snap: Since we are moving Right (WorldX increasing), we want to make sure
-      // we snap to a grid line that is >= rawNewTarget to keep the note inside the margin.
-      // Coordinate system: X is negative. Increasing X means moving closer to 0.
-      // If raw is -550, and we round, we get -600 (left) or -500 (right).
-      // -500 is > -550. -600 is < -550.
-      // We want > -550. So we use Ceil.
       targetCameraX =
         Math.ceil(rawNewTarget / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
     }
     // Check Right Bound
     else if (predictedScreenX > WIDTH - margin) {
-      // Note is too far Right. Move view Left (decrease worldX, make more negative)
-      // predicted = relevant + newTarget <= WIDTH - margin
-      // newTarget <= WIDTH - margin - relevant
       rawNewTarget = WIDTH - margin - relevantKeyX;
-
-      // Snap: We want newTarget <= raw. Use Floor.
       targetCameraX =
         Math.floor(rawNewTarget / WHITE_KEY_WIDTH) * WHITE_KEY_WIDTH;
     }
@@ -717,6 +758,7 @@ async function initGame() {
   gameContainer.addChild(uiContainer);
 
   parsedMelody = parseABC(getMelody());
+  parsedAccompaniment = parseABC(getAccompaniment());
 
   createPiano();
   createUI();
@@ -770,15 +812,20 @@ async function initGame() {
       let minDistance = Infinity;
 
       for (const n of activeNotes) {
-        const dist = stopY - n.y;
-        if (dist < minDistance) {
-          minDistance = dist;
+        // Only main melody notes cause waiting
+        if (!n.isAccompaniment) {
+          const dist = stopY - n.y;
+          if (dist < minDistance) {
+            minDistance = dist;
+          }
         }
       }
 
       if (minDistance < 0) minDistance = 0;
       const maxAllowedDelta = minDistance / SPEED;
 
+      // Note: If accompaniment is playing, technically we might slow it down here
+      // if the user is slow on the melody. This keeps tracks in sync.
       if (maxAllowedDelta < effectiveDelta) {
         effectiveDelta = maxAllowedDelta;
       }
@@ -788,18 +835,60 @@ async function initGame() {
     if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
       timeSinceLastNote += effectiveDelta;
 
-      if (timeSinceLastNote >= timeUntilNextNote) {
+      while (
+        timeSinceLastNote >= timeUntilNextNote &&
+        melodyIndex < parsedMelody.length
+      ) {
+        timeSinceLastNote -= timeUntilNextNote; // Subtract to preserve overflow (accuracy)
+
         const noteData = parsedMelody[melodyIndex];
 
         if (noteData.id !== null) {
-          spawnNote(noteData);
+          // Pass overflow as offset to keep vertical spacing correct
+          spawnNote(noteData, false, timeSinceLastNote);
         }
 
         timeUntilNextNote = noteData.duration * FRAMES_PER_BEAT;
-        timeSinceLastNote = 0;
         melodyIndex++;
+
+        // Safety break for zero-duration loops
+        if (timeUntilNextNote <= 0) timeUntilNextNote = 0.1;
       }
-    } else if (parsedMelody.length > 0 && melodyIndex >= parsedMelody.length) {
+    }
+
+    // 2. Accompaniment Sequencer
+    if (
+      parsedAccompaniment.length > 0 &&
+      accompIndex < parsedAccompaniment.length
+    ) {
+      timeSinceLastAccomp += effectiveDelta;
+
+      while (
+        timeSinceLastAccomp >= timeUntilNextAccomp &&
+        accompIndex < parsedAccompaniment.length
+      ) {
+        timeSinceLastAccomp -= timeUntilNextAccomp;
+
+        const noteData = parsedAccompaniment[accompIndex];
+
+        if (noteData.id !== null) {
+          spawnNote(noteData, true, timeSinceLastAccomp);
+        }
+
+        timeUntilNextAccomp = noteData.duration * FRAMES_PER_BEAT;
+        accompIndex++;
+
+        if (timeUntilNextAccomp <= 0) timeUntilNextAccomp = 0.1;
+      }
+    }
+
+    // Check end of song
+    const melodyEnded = melodyIndex >= parsedMelody.length;
+    const accompEnded =
+      parsedAccompaniment.length === 0 ||
+      accompIndex >= parsedAccompaniment.length;
+
+    if (parsedMelody.length > 0 && melodyEnded && accompEnded) {
       if (activeNotes.length === 0 && !isSongFinished) {
         isSongFinished = true;
         setTimeout(() => {
@@ -808,29 +897,33 @@ async function initGame() {
       }
     }
 
-    // 2. Physics
+    // 3. Physics & Hit Logic
     const hitLineY = pianoKeys[0].y;
 
-    if (isDemoPlaying) {
-      for (let i = activeNotes.length - 1; i >= 0; i--) {
-        const n = activeNotes[i];
-        n.y += SPEED * effectiveDelta;
+    for (let i = activeNotes.length - 1; i >= 0; i--) {
+      const n = activeNotes[i];
+      n.y += SPEED * effectiveDelta;
 
+      // Handle Accompaniment (Always auto-play)
+      if (n.isAccompaniment) {
+        if (n.y + NOTE_HEIGHT >= hitLineY) {
+          playBackingNote(n.targetIndex);
+          notesContainer.removeChild(n);
+          activeNotes.splice(i, 1);
+        }
+        continue; // Skip rest of logic for backing tracks
+      }
+
+      // Handle Melody
+      if (isDemoPlaying) {
         if (n.y + NOTE_HEIGHT >= hitLineY) {
           autoPlayNote(n.targetIndex);
           notesContainer.removeChild(n);
           activeNotes.splice(i, 1);
         }
-      }
-    } else {
-      let closestNote = null;
-      let closestDist = Infinity;
-
-      for (let i = activeNotes.length - 1; i >= 0; i--) {
-        const n = activeNotes[i];
-        n.y += SPEED * effectiveDelta;
+      } else {
+        // Game Mode
         n.tint = n.originalColor;
-
         const missThreshold = hitLineY + 20;
 
         if (n.y > missThreshold) {
@@ -840,13 +933,10 @@ async function initGame() {
         }
 
         const dist = Math.abs(n.y - hitLineY);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closestNote = n;
+        // Highlight if in hit zone
+        if (dist < HIT_ZONE) {
+          n.tint = COLOR_NOTE_READY;
         }
-      }
-      if (closestNote && closestDist < HIT_ZONE) {
-        closestNote.tint = COLOR_NOTE_READY;
       }
     }
   });

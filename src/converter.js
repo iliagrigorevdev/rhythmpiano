@@ -5,65 +5,117 @@ import { Midi } from "@tonejs/midi";
  * @param {ArrayBuffer} arrayBuffer
  * @param {number} minMidi - Lowest MIDI note allowed (inclusive)
  * @param {number} maxMidi - Highest MIDI note allowed (inclusive)
- * @returns {Promise<{bpm: number, melody: string}>}
+ * @returns {Promise<{bpm: number, melody: string, accompaniment: string}>}
  */
 export async function convertMidiToUrlData(arrayBuffer, minMidi, maxMidi) {
   const midi = new Midi(arrayBuffer);
 
   // Extract base BPM (Default to 120 if missing)
   const bpm = Math.round(midi.header.tempos[0]?.bpm || 120);
-
-  // Process First Track Only
-  const track = midi.tracks[0];
-  if (!track) {
-    throw new Error("No tracks found in MIDI file.");
-  }
-
   const ppq = midi.header.ppq;
 
-  // Sort notes by time, then by pitch descending
+  // Process First Track (Melody)
+  const melodyTrack = midi.tracks[0];
+  if (!melodyTrack) {
+    throw new Error("No tracks found in MIDI file.");
+  }
+  const melody = convertTrackToAbc(melodyTrack, ppq, minMidi, maxMidi);
+
+  // Process Second Track (Accompaniment) if exists
+  let accompaniment = "";
+  if (midi.tracks.length > 1) {
+    // Find a suitable backing track (skip empty metadata tracks if any)
+    let bestTrack = null;
+    let maxNotes = 0;
+
+    for (let i = 1; i < midi.tracks.length; i++) {
+      if (midi.tracks[i].notes.length > maxNotes) {
+        maxNotes = midi.tracks[i].notes.length;
+        bestTrack = midi.tracks[i];
+      }
+    }
+
+    if (bestTrack && bestTrack.notes.length > 0) {
+      accompaniment = convertTrackToAbc(bestTrack, ppq, minMidi, maxMidi);
+    }
+  }
+
+  return { bpm, melody, accompaniment };
+}
+
+function convertTrackToAbc(track, ppq, minMidi, maxMidi) {
+  // Sort notes by time, then by pitch descending (to keep melody note in chords)
   track.notes.sort((a, b) => {
     if (a.ticks === b.ticks) return b.midi - a.midi;
     return a.ticks - b.ticks;
   });
 
-  // 1. Collect all events (Notes and Rests)
   const events = [];
-  let lastTick = 0;
-  let lastNoteStart = -1;
 
+  // Filter out chords (keep highest note only for this monophonic parser)
+  const uniqueNotes = [];
+  let lastTick = -1;
   track.notes.forEach((note) => {
-    // Skip notes starting at same time (chords -> keep melody note only)
-    if (note.ticks === lastNoteStart) return;
-    lastNoteStart = note.ticks;
-
-    // A. Handle Rests
-    const gapTicks = note.ticks - lastTick;
-    if (gapTicks > 0) {
-      const gapDuration = (gapTicks / ppq) * 2;
-      // Filter tiny noise (threshold similar to quantization floor)
-      if (gapDuration > 0.05 && events.length > 0) {
-        events.push({ type: "rest", duration: gapDuration });
-      }
-    }
-
-    // B. Handle Note
-    const noteDuration = (note.durationTicks / ppq) * 2;
-    events.push({
-      type: "note",
-      midi: note.midi,
-      duration: noteDuration,
-    });
-
-    lastTick = note.ticks + note.durationTicks;
+    // Basic chord reduction: if start time is same as previous, skip (since we sorted desc pitch, we kept the highest)
+    if (Math.abs(note.ticks - lastTick) < 1) return;
+    lastTick = note.ticks;
+    uniqueNotes.push(note);
   });
 
-  // 2. Generate ABC String (Fractional support)
+  for (let i = 0; i < uniqueNotes.length; i++) {
+    const note = uniqueNotes[i];
+    const nextNote = uniqueNotes[i + 1];
+
+    const currentStart = note.ticks;
+    // Calculate available time slot until the next event starts
+    // If last note, use its own duration
+    const nextStart = nextNote
+      ? nextNote.ticks
+      : currentStart + note.durationTicks;
+
+    const timeUntilNext = nextStart - currentStart;
+    const noteDurationTicks = note.durationTicks;
+
+    // Convert to musical time (approx 1 unit = 1/8th note)
+    const timeSlot = (timeUntilNext / ppq) * 2;
+    const actualDuration = (noteDurationTicks / ppq) * 2;
+
+    // Skip excessively small glitches
+    if (timeSlot <= 0.01) continue;
+
+    // Logic: Ensure strict timeline sync by forcing total duration = timeSlot.
+    // If actual note is shorter than slot -> Note + Rest.
+    // If actual note is longer than slot (overlap) -> Truncate Note to slot.
+
+    const tolerance = 0.05; // floating point tolerance
+
+    if (actualDuration < timeSlot - tolerance) {
+      // Staccato / Rest follows
+      events.push({
+        type: "note",
+        midi: note.midi,
+        duration: actualDuration,
+      });
+      events.push({
+        type: "rest",
+        duration: timeSlot - actualDuration,
+      });
+    } else {
+      // Legato / Overlap -> Truncate to keep rhythm
+      events.push({
+        type: "note",
+        midi: note.midi,
+        duration: timeSlot,
+      });
+    }
+  }
+
+  // Generate ABC String
   let abcString = "";
 
   events.forEach((event) => {
     const durationString = formatAbcDuration(event.duration);
-    if (durationString === null) return;
+    if (!durationString && durationString !== "") return; // Skip if too small
 
     if (event.type === "rest") {
       abcString += `z${durationString}`;
@@ -79,7 +131,7 @@ export async function convertMidiToUrlData(arrayBuffer, minMidi, maxMidi) {
     }
   });
 
-  return { bpm, melody: abcString };
+  return abcString;
 }
 
 /**
@@ -90,7 +142,7 @@ function formatAbcDuration(duration) {
   // Quantize to nearest 0.25
   const steps = Math.round(duration * 4);
 
-  if (steps === 0) return null;
+  if (steps <= 0) return null;
   if (steps === 4) return ""; // 1.0 (Unit length)
 
   // Integer case
