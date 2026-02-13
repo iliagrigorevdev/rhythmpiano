@@ -21,8 +21,8 @@ const SPEED = parseInt(urlParams.get("speed")) || 4;
 const WAIT_MODE = urlParams.get("wait") !== "false";
 const DEMO_MODE = urlParams.get("demo") === "true";
 
-const START_NOTE = "C3";
-const END_NOTE = "B5";
+const START_NOTE = "A0";
+const END_NOTE = "C8";
 
 const FRAMES_PER_BEAT = ((60 / BPM) * 60) / 2;
 

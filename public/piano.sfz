@@ -1,3 +1,12 @@
+<region> sample=samples/A0v10.ogg lokey=21 hikey=22 pitch_keycenter=21
+<region> sample=samples/C1v10.ogg lokey=23 hikey=25 pitch_keycenter=24
+<region> sample=samples/Ds1v10.ogg lokey=26 hikey=28 pitch_keycenter=27
+<region> sample=samples/Fs1v10.ogg lokey=29 hikey=31 pitch_keycenter=30
+<region> sample=samples/A1v10.ogg lokey=32 hikey=34 pitch_keycenter=33
+<region> sample=samples/C2v10.ogg lokey=35 hikey=37 pitch_keycenter=36
+<region> sample=samples/Ds2v10.ogg lokey=38 hikey=40 pitch_keycenter=39
+<region> sample=samples/Fs2v10.ogg lokey=41 hikey=43 pitch_keycenter=42
+<region> sample=samples/A2v10.ogg lokey=44 hikey=46 pitch_keycenter=45
 <region> sample=samples/C3v10.ogg lokey=47 hikey=49 pitch_keycenter=48
 <region> sample=samples/Ds3v10.ogg lokey=50 hikey=52 pitch_keycenter=51
 <region> sample=samples/Fs3v10.ogg lokey=53 hikey=55 pitch_keycenter=54
@@ -11,3 +20,11 @@
 <region> sample=samples/Fs5v10.ogg lokey=77 hikey=79 pitch_keycenter=78
 <region> sample=samples/A5v10.ogg lokey=80 hikey=82 pitch_keycenter=81
 <region> sample=samples/C6v10.ogg lokey=83 hikey=85 pitch_keycenter=84
+<region> sample=samples/Ds6v10.ogg lokey=86 hikey=88 pitch_keycenter=87
+<region> sample=samples/Fs6v10.ogg lokey=89 hikey=91 pitch_keycenter=90
+<region> sample=samples/A6v10.ogg lokey=92 hikey=94 pitch_keycenter=93
+<region> sample=samples/C7v10.ogg lokey=95 hikey=97 pitch_keycenter=96
+<region> sample=samples/Ds7v10.ogg lokey=98 hikey=100 pitch_keycenter=99
+<region> sample=samples/Fs7v10.ogg lokey=101 hikey=103 pitch_keycenter=102
+<region> sample=samples/A7v10.ogg lokey=104 hikey=106 pitch_keycenter=105
+<region> sample=samples/C8v10.ogg lokey=107 hikey=108 pitch_keycenter=108
