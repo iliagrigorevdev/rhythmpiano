@@ -802,8 +802,8 @@ async function initGame() {
   app.stage.addChild(gameContainer);
 
   gameContainer.addChild(worldContainer);
-  worldContainer.addChild(keysContainer);
   worldContainer.addChild(notesContainer);
+  worldContainer.addChild(keysContainer);
   gameContainer.addChild(uiContainer);
 
   parsedMelody = parseABC(getMelody());
