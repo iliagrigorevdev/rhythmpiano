@@ -19,7 +19,8 @@ export async function convertMidiToUrlData(arrayBuffer, minMidi, maxMidi) {
   if (!melodyTrack) {
     throw new Error("No tracks found in MIDI file.");
   }
-  const melody = convertTrackToAbc(melodyTrack, ppq, minMidi, maxMidi);
+  // isAccompaniment = false (Keep highest note)
+  const melody = convertTrackToAbc(melodyTrack, ppq, minMidi, maxMidi, false);
 
   // Process Second Track (Accompaniment) if exists
   let accompaniment = "";
@@ -36,27 +37,39 @@ export async function convertMidiToUrlData(arrayBuffer, minMidi, maxMidi) {
     }
 
     if (bestTrack && bestTrack.notes.length > 0) {
-      accompaniment = convertTrackToAbc(bestTrack, ppq, minMidi, maxMidi);
+      // isAccompaniment = true (Keep lowest note)
+      accompaniment = convertTrackToAbc(bestTrack, ppq, minMidi, maxMidi, true);
     }
   }
 
   return { bpm, melody, accompaniment };
 }
 
-function convertTrackToAbc(track, ppq, minMidi, maxMidi) {
-  // Sort notes by time, then by pitch descending (to keep melody note in chords)
+function convertTrackToAbc(
+  track,
+  ppq,
+  minMidi,
+  maxMidi,
+  isAccompaniment = false,
+) {
+  // Sort notes by time.
+  // For chords (same ticks):
+  // - If Melody: Sort pitch Descending (b - a) to keep highest note.
+  // - If Accompaniment: Sort pitch Ascending (a - b) to keep lowest note.
   track.notes.sort((a, b) => {
-    if (a.ticks === b.ticks) return b.midi - a.midi;
+    if (a.ticks === b.ticks) {
+      return isAccompaniment ? a.midi - b.midi : b.midi - a.midi;
+    }
     return a.ticks - b.ticks;
   });
 
   const events = [];
 
-  // Filter out chords (keep highest note only for this monophonic parser)
+  // Filter out chords (keep first note found based on sort order)
   const uniqueNotes = [];
   let lastTick = -1;
   track.notes.forEach((note) => {
-    // Basic chord reduction: if start time is same as previous, skip (since we sorted desc pitch, we kept the highest)
+    // Basic chord reduction: if start time is same as previous, skip
     if (Math.abs(note.ticks - lastTick) < 1) return;
     lastTick = note.ticks;
     uniqueNotes.push(note);
