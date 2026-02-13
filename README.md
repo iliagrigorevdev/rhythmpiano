@@ -31,14 +31,13 @@ You can load your own `.mid` files to create levels automatically.
 
 You can manually configure levels by modifying the URL.
 
-| Parameter | Description                                                       | Default |
-| :-------- | :---------------------------------------------------------------- | :------ |
-| `bpm`     | Beats per minute.                                                 | `100`   |
-| `speed`   | Falling speed of notes in pixels per frame.                       | `4`     |
-| `wait`    | `true` pauses game if note is missed. `false` lets notes pass.    | `true`  |
-| `demo`    | `true` enables an auto-play demo before the game.                 | `false` |
-| `start`   | Starting note of the 2-octave range. Supported: `C3`, `F3`, `C4`. | `F3`    |
-| `melody`  | The encoded note sequence.                                        | `""`    |
+| Parameter | Description                                                    | Default |
+| :-------- | :------------------------------------------------------------- | :------ |
+| `bpm`     | Beats per minute.                                              | `100`   |
+| `speed`   | Falling speed of notes in pixels per frame.                    | `4`     |
+| `wait`    | `true` pauses game if note is missed. `false` lets notes pass. | `true`  |
+| `demo`    | `true` enables an auto-play demo before the game.              | `false` |
+| `melody`  | The encoded note sequence.                                     | `""`    |
 
 ### Melody Syntax
 
