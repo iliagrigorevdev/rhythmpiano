@@ -16,13 +16,19 @@ const WIDTH = 1000;
 const HEIGHT = 400;
 
 const urlParams = new URLSearchParams(window.location.search);
-const BPM = parseInt(urlParams.get("bpm")) || 100;
+// 1. Rename to ORIGINAL_BPM to allow dynamic calculation
+const ORIGINAL_BPM = parseInt(urlParams.get("bpm")) || 100;
 const SPEED = parseInt(urlParams.get("speed")) || 4;
 
 const START_NOTE = "A0";
 const END_NOTE = "C8";
 
-const FRAMES_PER_BEAT = ((60 / BPM) * 60) / 2;
+// 2. State for Slow Mode
+let isHalfSpeed = false;
+
+// 3. Helper functions to get current timing
+const getCurrentBpm = () => (isHalfSpeed ? ORIGINAL_BPM / 2 : ORIGINAL_BPM);
+const getFramesPerBeat = () => ((60 / getCurrentBpm()) * 60) / 2;
 
 // --- COLORS ---
 const COLOR_WHITE_KEY = 0xf0f0f0;
@@ -411,38 +417,61 @@ function createUI() {
     },
   });
 
-  // 5. Wait Mode Toggle (⏳)
-  buttonConfigs.push({
-    text: "⏳",
-    isToggle: true,
-    onClick: (e, btnContainer) => {
-      e.stopPropagation();
-      isWaitMode = !isWaitMode;
+  // Only show these controls if a melody is actually loaded
+  if (parsedMelody.length > 0) {
+    // 5. Wait Mode Toggle (⏳)
+    buttonConfigs.push({
+      text: "⏳",
+      isToggle: true,
+      initialState: isWaitMode,
+      onClick: (e, btnContainer) => {
+        e.stopPropagation();
+        isWaitMode = !isWaitMode;
 
-      // Update Visuals by redrawing
-      const newColor = isWaitMode ? 0x2e8b57 : 0x8b0000; // Green vs Red
-      btnContainer.updateColor(newColor);
-    },
-  });
+        // Update Visuals by redrawing
+        const newColor = isWaitMode ? 0x2e8b57 : 0x333333; // Green vs Default
+        btnContainer.updateColor(newColor);
+      },
+    });
 
-  // 6. Share (🔗)
-  buttonConfigs.push({
-    text: "🔗",
-    onClick: async () => {
-      let url = window.location.href;
-      url = url.replace(/%7E/g, "~");
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: "Rhythm Piano", text: "", url: url });
-        } catch (err) {}
-      } else {
-        try {
-          await navigator.clipboard.writeText(url);
-          alert("URL copied to clipboard!");
-        } catch (err) {}
-      }
-    },
-  });
+    // 6. Slow Mode Toggle (🐢)
+    buttonConfigs.push({
+      text: "🐢",
+      isToggle: true,
+      initialState: isHalfSpeed,
+      onClick: (e, btnContainer) => {
+        e.stopPropagation();
+        isHalfSpeed = !isHalfSpeed;
+
+        // Update Visuals by redrawing
+        const newColor = isHalfSpeed ? 0x2e8b57 : 0x333333; // Green (Active) vs Default
+        btnContainer.updateColor(newColor);
+      },
+    });
+
+    // 7. Share (🔗)
+    buttonConfigs.push({
+      text: "🔗",
+      onClick: async () => {
+        let url = window.location.href;
+        url = url.replace(/%7E/g, "~");
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: "Rhythm Piano",
+              text: "",
+              url: url,
+            });
+          } catch (err) {}
+        } else {
+          try {
+            await navigator.clipboard.writeText(url);
+            alert("URL copied to clipboard!");
+          } catch (err) {}
+        }
+      },
+    });
+  }
 
   // Calculate layout to center items
   const btnSize = 70;
@@ -455,7 +484,11 @@ function createUI() {
   buttonConfigs.forEach((config) => {
     let initialColor = 0x333333;
     if (config.isToggle) {
-      initialColor = isWaitMode ? 0x2e8b57 : 0x8b0000; // Green / Red
+      if (config.text === "⏳") {
+        initialColor = config.initialState ? 0x2e8b57 : 0x333333;
+      } else if (config.text === "🐢") {
+        initialColor = config.initialState ? 0x2e8b57 : 0x333333;
+      }
     }
 
     const btn = createButton(
@@ -530,7 +563,8 @@ function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
   const color = targetKey.data.type === "white" ? 0x00ffff : 0xff00ff;
 
   const width = targetKey.width - 4;
-  const distToNext = noteData.duration * FRAMES_PER_BEAT * SPEED;
+  // 4. Use getFramesPerBeat() instead of constant
+  const distToNext = noteData.duration * getFramesPerBeat() * SPEED;
 
   let topOffset = 0;
   if (distToNext < NOTE_CLEARANCE) {
@@ -629,7 +663,8 @@ function autoPlayNote(index, duration) {
   const audioNode = playNote(keyObj.data.id);
   showHitEffect(keyObj.x, keyObj.y);
 
-  const ms = duration * (30000 / BPM);
+  // 5. Use getCurrentBpm() for audio duration
+  const ms = duration * (30000 / getCurrentBpm());
   const playDuration = Math.max(ms, 100);
 
   setTimeout(() => {
@@ -645,7 +680,8 @@ function playBackingNote(index, duration) {
   if (!keyObj) return;
   const audioNode = playNote(keyObj.data.id);
   if (audioNode) {
-    const ms = duration * (30000 / BPM);
+    // 6. Use getCurrentBpm() for audio duration
+    const ms = duration * (30000 / getCurrentBpm());
     const playDuration = Math.max(ms, 100);
     setTimeout(() => {
       stopNote(audioNode, 1.0);
@@ -851,7 +887,8 @@ async function initGame() {
         if (noteData.id !== null) {
           spawnNote(noteData, !isMelodyInteractive, timeSinceLastNote);
         }
-        timeUntilNextNote = noteData.duration * FRAMES_PER_BEAT;
+        // 7. Use getFramesPerBeat() for loop logic
+        timeUntilNextNote = noteData.duration * getFramesPerBeat();
         melodyIndex++;
         if (timeUntilNextNote <= 0) timeUntilNextNote = 0.1;
       }
@@ -872,7 +909,8 @@ async function initGame() {
         if (noteData.id !== null) {
           spawnNote(noteData, isMelodyInteractive, timeSinceLastAccomp);
         }
-        timeUntilNextAccomp = noteData.duration * FRAMES_PER_BEAT;
+        // 8. Use getFramesPerBeat() for loop logic
+        timeUntilNextAccomp = noteData.duration * getFramesPerBeat();
         accompIndex++;
         if (timeUntilNextAccomp <= 0) timeUntilNextAccomp = 0.1;
       }

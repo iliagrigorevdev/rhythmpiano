@@ -13,6 +13,7 @@ Play along to pre-programmed melodies using a falling-note interface (synthesia 
 - **▶️ Demo Mode**: Click the Play button in the menu to watch the melody play automatically before you try it yourself.
 - **📂 MIDI File Import**: Convert local `.mid` files into playable levels. The app automatically separates the melody (first track, highest note in chords) and accompaniment (second track, lowest note in chords).
 - **⏳ Wait Mode**: Toggleable via the menu. By default, the game pauses if a note reaches the line but hasn't been played, allowing you to learn the melody at your own pace.
+- **Slow Mode (🐢)**: Reduces the tempo to 50% speed. Useful for practicing fast or complex sections.
 - **Auto-Scrolling Camera**: The view automatically pans to follow the active notes, ensuring the next keys you need are always in sight.
 - **Piano Range**: The interactive piano covers the full 88-key range of a grand piano (A0 to C8).
 - **Sample-Based Audio**: Uses realistic SFZ piano samples (Salamander Grand Piano) with dynamic pitch shifting for high performance.
