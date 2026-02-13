@@ -409,13 +409,15 @@ function createUI() {
   }
 
   // 4. Load MIDI (📂)
-  buttonConfigs.push({
-    text: "📂",
-    onClick: (e) => {
-      e.stopPropagation();
-      fileInput.click();
-    },
-  });
+  if (parsedMelody.length === 0) {
+    buttonConfigs.push({
+      text: "📂",
+      onClick: (e) => {
+        e.stopPropagation();
+        fileInput.click();
+      },
+    });
+  }
 
   // Only show these controls if a melody is actually loaded
   if (parsedMelody.length > 0) {
