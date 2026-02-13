@@ -1,48 +1,92 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
-        <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#4A4A4A;"/>
-            <stop offset="100%" style="stop-color:#2C2C2C;"/>
+        <!-- Background Gradient -->
+        <linearGradient id="bg-grad" x1="256" y1="0" x2="256" y2="512" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#2a2a2a"/>
+            <stop offset="1" stop-color="#111111"/>
         </linearGradient>
+
+        <!-- White Key Gradient (Subtle 3D) -->
+        <linearGradient id="white-key-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#FFFFFF"/>
+            <stop offset="0.8" stop-color="#F0F0F0"/>
+            <stop offset="1" stop-color="#D0D0D0"/>
+        </linearGradient>
+
+        <!-- Black Key Gradient -->
+        <linearGradient id="black-key-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#333333"/>
+            <stop offset="1" stop-color="#000000"/>
+        </linearGradient>
+
+        <!-- Note Tail Gradients (Motion Blur effect) -->
+        <linearGradient id="cyan-trail" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#00FFFF" stop-opacity="0"/>
+            <stop offset="0.5" stop-color="#00FFFF" stop-opacity="0.8"/>
+            <stop offset="1" stop-color="#00FFFF"/>
+        </linearGradient>
+
+        <linearGradient id="magenta-trail" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#FF00FF" stop-opacity="0"/>
+            <stop offset="0.5" stop-color="#FF00FF" stop-opacity="0.8"/>
+            <stop offset="1" stop-color="#FF00FF"/>
+        </linearGradient>
+
+        <!-- Glow Filter for Impact -->
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+            <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+            <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
     </defs>
+
+    <!-- Base Container -->
+    <rect width="512" height="512" rx="100" fill="url(#bg-grad)"/>
+
+    <!-- Track Area (Visual Guide) -->
+    <g opacity="0.1">
+        <rect x="106" y="50" width="300" height="400" fill="#000"/>
+        <line x1="181" y1="50" x2="181" y2="350" stroke="#FFF" stroke-width="2"/>
+        <line x1="256" y1="50" x2="256" y2="350" stroke="#FFF" stroke-width="2"/>
+        <line x1="331" y1="50" x2="331" y2="350" stroke="#FFF" stroke-width="2"/>
+    </g>
+
+    <!-- Falling Notes -->
+    <!-- Note 1: Magenta (Accompaniment) - Falling -->
+    <rect x="196" y="80" width="45" height="120" rx="4" fill="url(#magenta-trail)"/>
     
-    <!-- Background -->
-    <rect width="512" height="512" rx="80" fill="url(#icon-gradient)"/>
+    <!-- Note 2: Cyan (Melody) - Hitting the line -->
+    <rect x="271" y="230" width="45" height="120" rx="4" fill="url(#cyan-trail)"/>
 
-    <!-- Main Game Group: Translated down to y=200 -->
-    <g transform="translate(81, 200)">
-        
-        <!-- Falling Notes (Drawn BEHIND keys) -->
-        <!-- Shortened height to 40px to match game logic -->
-        
-        <!-- Note 1: Cyan (White Key C) - Close to hitting -->
-        <rect x="10" y="-50" width="40" height="40" rx="4" fill="#00FFFF" stroke="#008888" stroke-width="2"/>
-        
-        <!-- Note 2: Magenta (Black Key D#) - Mid way -->
-        <rect x="85" y="-90" width="40" height="40" rx="4" fill="#FF00FF" stroke="#880088" stroke-width="2"/>
-        
-        <!-- Note 3: Cyan (White Key A) - High up -->
-        <rect x="260" y="-140" width="40" height="40" rx="4" fill="#00FFFF" stroke="#008888" stroke-width="2"/>
+    <!-- Judgment Line (The "Hit" Line) -->
+    <line x1="90" y1="350" x2="422" y2="350" stroke="#CC0000" stroke-width="6" stroke-linecap="round"/>
 
-        <!-- Piano Base -->
-        <rect width="350" height="200" rx="10" fill="#000"/>
-        
-        <!-- White Keys Area -->
-        <rect x="5" y="5" width="340" height="190" fill="#FFF"/>
+    <!-- Impact Effect (Burst on the Cyan note) -->
+    <g filter="url(#glow)">
+        <circle cx="293.5" cy="350" r="25" fill="#FFF" fill-opacity="0.6"/>
+        <circle cx="293.5" cy="350" r="15" fill="#00FFFF"/>
+    </g>
 
-        <!-- Key Separators -->
-        <path d="M 55 120 L 55 195 M 105 120 L 105 195 M 155 5 L 155 195 M 205 120 L 205 195 M 255 120 L 255 195 M 305 5 L 305 195" stroke="#E5E7EB" stroke-width="1.5"/>
+    <!-- Piano Keys (Overlaying the bottom) -->
+    <g transform="translate(106, 355)">
+        <!-- White Keys -->
+        <path d="M0 0 H74 V112 C74 116.4 70.4 120 66 120 H8 C3.6 120 0 116.4 0 112 V0Z" fill="url(#white-key-grad)" stroke="#111" stroke-width="2"/>
+        <path d="M75 0 H149 V112 C149 116.4 145.4 120 141 120 H83 C78.6 120 75 116.4 75 112 V0Z" fill="url(#white-key-grad)" stroke="#111" stroke-width="2"/>
+        <path d="M150 0 H224 V112 C224 116.4 220.4 120 216 120 H158 C153.6 120 150 116.4 150 112 V0Z" fill="url(#white-key-grad)" stroke="#111" stroke-width="2"/>
+        <path d="M225 0 H299 V112 C299 116.4 295.4 120 291 120 H233 C228.6 120 225 116.4 225 112 V0Z" fill="url(#white-key-grad)" stroke="#111" stroke-width="2"/>
 
-        <!-- The Red "Hit" / Judgment Line -->
-        <line x1="5" y1="5" x2="345" y2="5" stroke="#CC0000" stroke-width="6" />
+        <!-- Black Keys (Sitting on top) -->
+        <!-- Shadow -->
+        <rect x="50" y="-2" width="44" height="75" rx="3" fill="#000" fill-opacity="0.5" />
+        <rect x="130" y="-2" width="44" height="75" rx="3" fill="#000" fill-opacity="0.5" />
+        <rect x="205" y="-2" width="44" height="75" rx="3" fill="#000" fill-opacity="0.5" />
 
-        <!-- Black Keys -->
-        <g id="black-keys">
-            <rect x="35" y="5" width="40" height="115" rx="5" fill="#1F2937" stroke="#000" stroke-width="1"/>
-            <rect x="85" y="5" width="40" height="115" rx="5" fill="#1F2937" stroke="#000" stroke-width="1"/>
-            <rect x="185" y="5" width="40" height="115" rx="5" fill="#1F2937" stroke="#000" stroke-width="1"/>
-            <rect x="235" y="5" width="40" height="115" rx="5" fill="#1F2937" stroke="#000" stroke-width="1"/>
-            <rect x="285" y="5" width="40" height="115" rx="5" fill="#1F2937" stroke="#000" stroke-width="1"/>
-        </g>
+        <!-- Actual Keys -->
+        <rect x="48" y="-5" width="44" height="75" rx="3" fill="url(#black-key-grad)" stroke="#222" stroke-width="1"/>
+        <rect x="128" y="-5" width="44" height="75" rx="3" fill="url(#black-key-grad)" stroke="#222" stroke-width="1"/>
+        <rect x="203" y="-5" width="44" height="75" rx="3" fill="url(#black-key-grad)" stroke="#222" stroke-width="1"/>
     </g>
 </svg>
