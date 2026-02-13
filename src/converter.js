@@ -75,6 +75,22 @@ function convertTrackToAbc(
     uniqueNotes.push(note);
   });
 
+  // Handle initial silence (Time 0 to first note)
+  if (uniqueNotes.length > 0) {
+    const startTick = uniqueNotes[0].ticks;
+    if (startTick > 0) {
+      // Convert to musical time (approx 1 unit = 1/8th note)
+      const initialDelay = (startTick / ppq) * 2;
+      // Filter out negligible delays (floating point jitter)
+      if (initialDelay > 0.01) {
+        events.push({
+          type: "rest",
+          duration: initialDelay,
+        });
+      }
+    }
+  }
+
   for (let i = 0; i < uniqueNotes.length; i++) {
     const note = uniqueNotes[i];
     const nextNote = uniqueNotes[i + 1];
