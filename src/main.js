@@ -81,7 +81,7 @@ const pianoKeys = [];
 const activeNotes = [];
 
 // UI Elements
-let playButton;
+let menuContainer; // Holds Play buttons
 let loadingText;
 let openButton;
 let shareButton;
@@ -104,6 +104,7 @@ let isSongFinished = false;
 // Game State
 let isDemoPlaying = false;
 let hasDemoPlayed = false;
+let selectedTrackType = "melody"; // 'melody' or 'accompaniment'
 
 // Camera State
 let targetCameraX = 0;
@@ -156,7 +157,7 @@ fileInput.addEventListener("change", async (e) => {
     console.error(err);
     alert("Failed to parse MIDI file.");
     loadingText.visible = false;
-    playButton.visible = true;
+    menuContainer.visible = true;
   }
 });
 
@@ -267,9 +268,12 @@ function centerCameraOnIndex(index, immediate = false) {
   }
 }
 
-// Helper to center camera based on the range of notes used in melody
-function alignCameraToMelodyRange() {
-  if (parsedMelody.length === 0) {
+// Helper to center camera based on the range of notes used in the active track
+function alignCameraToActiveTrack() {
+  const activeTrack =
+    selectedTrackType === "melody" ? parsedMelody : parsedAccompaniment;
+
+  if (activeTrack.length === 0) {
     centerCameraOnIndex(Math.floor(pianoKeys.length / 2), true);
     return;
   }
@@ -278,7 +282,7 @@ function alignCameraToMelodyRange() {
   let maxIndex = -Infinity;
   let found = false;
 
-  parsedMelody.forEach((n) => {
+  activeTrack.forEach((n) => {
     if (n.id) {
       const idx = NOTES_DATA.findIndex((nd) => nd.id === n.id);
       if (idx !== -1) {
@@ -298,6 +302,46 @@ function alignCameraToMelodyRange() {
   }
 }
 
+function createButton(text, x, y, onClick, fontSize = 24) {
+  const container = new PIXI.Container();
+  container.x = x;
+  container.y = y;
+  container.eventMode = "static";
+  container.cursor = "pointer";
+
+  const style = {
+    fontFamily: "Arial",
+    fontSize: fontSize,
+    fill: 0xffffff,
+    align: "center",
+    fontWeight: "bold",
+    stroke: { color: 0x000000, width: 2 },
+  };
+
+  const textObj = new PIXI.Text({ text, style });
+  textObj.anchor.set(0.5);
+
+  const paddingX = 40;
+  const paddingY = 20;
+
+  const bg = new PIXI.Graphics();
+  bg.roundRect(
+    -textObj.width / 2 - paddingX / 2,
+    -textObj.height / 2 - paddingY / 2,
+    textObj.width + paddingX,
+    textObj.height + paddingY,
+    10,
+  );
+  bg.fill({ color: 0x000000, alpha: 0.8 });
+  bg.stroke({ width: 2, color: 0xffffff });
+
+  container.addChild(bg);
+  container.addChild(textObj);
+  container.on("pointertap", onClick);
+
+  return container;
+}
+
 function createUI() {
   const style = {
     fontFamily: "Arial",
@@ -308,127 +352,96 @@ function createUI() {
     stroke: { color: 0x000000, width: 4 },
   };
 
-  const btnStyle = {
-    ...style,
-    fontSize: 24,
-    stroke: { color: 0x000000, width: 2 },
-  };
-  const paddingX = 40;
-  const paddingY = 20;
-
   loadingText = new PIXI.Text({ text: "Loading Sounds...", style });
   loadingText.x = WIDTH / 2;
   loadingText.y = HEIGHT / 2 - 50;
   loadingText.anchor.set(0.5);
   uiContainer.addChild(loadingText);
 
-  // Play Button
-  playButton = new PIXI.Container();
-  playButton.x = WIDTH / 2;
-  playButton.y = HEIGHT / 2 - 100;
-  playButton.visible = false;
-  playButton.eventMode = "static";
-  playButton.cursor = "pointer";
+  // --- MENU CONTAINER ---
+  menuContainer = new PIXI.Container();
+  menuContainer.visible = false;
+  uiContainer.addChild(menuContainer);
 
-  const playBtnText = new PIXI.Text({
-    text: "▶️  Play Melody",
-    style: btnStyle,
-  });
-  playBtnText.anchor.set(0.5);
+  const hasAccompaniment = parsedAccompaniment.length > 0;
 
-  const playBg = new PIXI.Graphics();
-  playBg.roundRect(
-    -playBtnText.width / 2 - paddingX / 2,
-    -playBtnText.height / 2 - paddingY / 2,
-    playBtnText.width + paddingX,
-    playBtnText.height + paddingY,
-    10,
-  );
-  playBg.fill({ color: 0x000000, alpha: 0.8 });
-  playBg.stroke({ width: 2, color: 0xffffff });
+  if (hasAccompaniment) {
+    // Button 1: Play Melody
+    const btnMelody = createButton(
+      "▶️ Play Melody",
+      WIDTH / 2 - 150,
+      HEIGHT / 2 - 100,
+      () => {
+        selectedTrackType = "melody";
+        if (DEMO_MODE && !hasDemoPlayed) startDemo();
+        else resetGame();
+      },
+    );
+    menuContainer.addChild(btnMelody);
 
-  playButton.addChild(playBg);
-  playButton.addChild(playBtnText);
-  // iOS Fix: Use pointertap
-  playButton.on("pointertap", () => {
-    if (DEMO_MODE && !hasDemoPlayed) {
-      startDemo();
-    } else {
-      resetGame();
-    }
-  });
-  uiContainer.addChild(playButton);
+    // Button 2: Play Accompaniment
+    const btnAccomp = createButton(
+      "▶️ Play Accompaniment",
+      WIDTH / 2 + 150,
+      HEIGHT / 2 - 100,
+      () => {
+        selectedTrackType = "accompaniment";
+        if (DEMO_MODE && !hasDemoPlayed) startDemo();
+        else resetGame();
+      },
+    );
+    menuContainer.addChild(btnAccomp);
+  } else {
+    // Single Button
+    const btnPlay = createButton(
+      "▶️ Play Melody",
+      WIDTH / 2,
+      HEIGHT / 2 - 100,
+      () => {
+        selectedTrackType = "melody";
+        if (DEMO_MODE && !hasDemoPlayed) startDemo();
+        else resetGame();
+      },
+    );
+    menuContainer.addChild(btnPlay);
+  }
 
   // Open Button
-  openButton = new PIXI.Container();
-  openButton.x = WIDTH / 2;
-  openButton.y = HEIGHT / 2 - 100;
-  openButton.visible = false;
-  openButton.eventMode = "static";
-  openButton.cursor = "pointer";
-
-  const openBtnText = new PIXI.Text({
-    text: "📂 Open MIDI File",
-    style: btnStyle,
-  });
-  openBtnText.anchor.set(0.5);
-
-  const openBg = new PIXI.Graphics();
-  openBg.roundRect(
-    -openBtnText.width / 2 - paddingX / 2,
-    -openBtnText.height / 2 - paddingY / 2,
-    openBtnText.width + paddingX,
-    openBtnText.height + paddingY,
-    10,
+  openButton = createButton(
+    "📂 Open MIDI File",
+    WIDTH / 2,
+    HEIGHT / 2 - 100,
+    (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    },
+    20, // Smaller font
   );
-  openBg.fill({ color: 0x000000, alpha: 0.8 });
-  openBg.stroke({ width: 2, color: 0xffffff });
-
-  openButton.addChild(openBg);
-  openButton.addChild(openBtnText);
-  // iOS Fix: Use pointertap instead of pointerdown
-  openButton.on("pointertap", (e) => {
-    e.stopPropagation();
-    fileInput.click();
-  });
+  openButton.visible = false; // Managed by menu logic
   uiContainer.addChild(openButton);
 
   // Share Button
-  shareButton = new PIXI.Container();
-  shareButton.x = WIDTH / 2;
-  shareButton.y = HEIGHT / 2 - 35;
+  shareButton = createButton(
+    "🔗",
+    WIDTH / 2,
+    HEIGHT / 2 - 35,
+    async () => {
+      let url = window.location.href;
+      url = url.replace(/%7E/g, "~");
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "Rhythm Piano", text: "", url: url });
+        } catch (err) {}
+      } else {
+        try {
+          await navigator.clipboard.writeText(url);
+          alert("URL copied to clipboard!");
+        } catch (err) {}
+      }
+    },
+    30,
+  );
   shareButton.visible = false;
-  shareButton.eventMode = "static";
-  shareButton.cursor = "pointer";
-
-  const shareText = new PIXI.Text({
-    text: "🔗",
-    style: { ...btnStyle, fontSize: 30 },
-  });
-  shareText.anchor.set(0.5);
-
-  const shareBg = new PIXI.Graphics();
-  shareBg.roundRect(-25, -25, 50, 50, 10);
-  shareBg.fill({ color: 0x000000, alpha: 0.8 });
-  shareBg.stroke({ width: 2, color: 0xffffff });
-
-  shareButton.addChild(shareBg);
-  shareButton.addChild(shareText);
-  // iOS Fix: Use pointertap (Navigator.share requires user gesture)
-  shareButton.on("pointertap", async () => {
-    let url = window.location.href;
-    url = url.replace(/%7E/g, "~");
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "Rhythm Piano", text: "", url: url });
-      } catch (err) {}
-    } else {
-      try {
-        await navigator.clipboard.writeText(url);
-        alert("URL copied to clipboard!");
-      } catch (err) {}
-    }
-  });
   uiContainer.addChild(shareButton);
 }
 
@@ -451,12 +464,12 @@ function resetGame() {
   }
   activeNotes.length = 0;
 
-  playButton.visible = false;
+  menuContainer.visible = false;
   openButton.visible = false;
   shareButton.visible = false;
 
-  // Align camera to song range
-  alignCameraToMelodyRange();
+  // Align camera to the selected track range
+  alignCameraToActiveTrack();
 
   initAudio();
   isGameActive = true;
@@ -481,12 +494,11 @@ function startDemo() {
   }
   activeNotes.length = 0;
 
-  playButton.visible = false;
+  menuContainer.visible = false;
   openButton.visible = false;
   shareButton.visible = false;
 
-  // Align camera to song range
-  alignCameraToMelodyRange();
+  alignCameraToActiveTrack();
 
   initAudio();
   isGameActive = true;
@@ -494,7 +506,8 @@ function startDemo() {
 
 function resetToMenu() {
   isGameActive = false;
-  playButton.visible = true;
+  menuContainer.visible = true;
+  openButton.visible = true;
   shareButton.visible = true;
 }
 
@@ -678,12 +691,11 @@ function updateCamera() {
 
   if (activeNotes.length > 0) {
     // Find closest note to bottom, ignoring accompaniment if desired (or keep it if backing track defines view)
-    // Let's ignore backing track for camera focus so it follows the player's notes
     let maxY = -Infinity;
     let bottomNote = null;
 
     for (const n of activeNotes) {
-      // Ignore accompaniment for camera logic to focus on melody
+      // Ignore accompaniment for camera logic to focus on user notes
       if (n.y > maxY && !n.isAccompaniment) {
         maxY = n.y;
         bottomNote = n;
@@ -692,12 +704,19 @@ function updateCamera() {
     if (bottomNote) {
       relevantKeyX = bottomNote.x;
     }
-  } else if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
+  } else {
     // Look ahead if no active notes
-    const noteId = parsedMelody[melodyIndex].id;
-    const keyData = pianoKeys.find((k) => k.data.id === noteId);
-    if (keyData) {
-      relevantKeyX = keyData.x;
+    // Determine which sequencer to look at
+    const isMelodyActive = selectedTrackType === "melody";
+    const currentList = isMelodyActive ? parsedMelody : parsedAccompaniment;
+    const currentIndex = isMelodyActive ? melodyIndex : accompIndex;
+
+    if (currentList.length > 0 && currentIndex < currentList.length) {
+      const noteId = currentList[currentIndex].id;
+      const keyData = pianoKeys.find((k) => k.data.id === noteId);
+      if (keyData) {
+        relevantKeyX = keyData.x;
+      }
     }
   }
 
@@ -774,7 +793,7 @@ async function initGame() {
   createUI();
 
   // Initial alignment
-  alignCameraToMelodyRange();
+  alignCameraToActiveTrack();
 
   const resize = () => {
     const screenWidth = app.screen.width;
@@ -804,9 +823,9 @@ async function initGame() {
   await cacheAllNoteSounds();
 
   loadingText.visible = false;
-  playButton.visible = parsedMelody.length > 0;
-  shareButton.visible = playButton.visible;
-  openButton.visible = !playButton.visible;
+  menuContainer.visible = parsedMelody.length > 0;
+  shareButton.visible = menuContainer.visible;
+  openButton.visible = !menuContainer.visible;
 
   app.ticker.add((ticker) => {
     // Update Camera
@@ -822,7 +841,7 @@ async function initGame() {
       let minDistance = Infinity;
 
       for (const n of activeNotes) {
-        // Only main melody notes cause waiting
+        // Only active user notes cause waiting
         if (!n.isAccompaniment) {
           const dist = stopY - n.y;
           if (dist < minDistance) {
@@ -834,12 +853,13 @@ async function initGame() {
       if (minDistance < 0) minDistance = 0;
       const maxAllowedDelta = minDistance / SPEED;
 
-      // Note: If accompaniment is playing, technically we might slow it down here
-      // if the user is slow on the melody. This keeps tracks in sync.
       if (maxAllowedDelta < effectiveDelta) {
         effectiveDelta = maxAllowedDelta;
       }
     }
+
+    // Determine roles based on user selection
+    const isMelodyInteractive = selectedTrackType === "melody";
 
     // 1. Melody Sequencer
     if (parsedMelody.length > 0 && melodyIndex < parsedMelody.length) {
@@ -854,8 +874,8 @@ async function initGame() {
         const noteData = parsedMelody[melodyIndex];
 
         if (noteData.id !== null) {
-          // Pass overflow as offset to keep vertical spacing correct
-          spawnNote(noteData, false, timeSinceLastNote);
+          // If Melody is selected track, isAccompaniment = false. Else true.
+          spawnNote(noteData, !isMelodyInteractive, timeSinceLastNote);
         }
 
         timeUntilNextNote = noteData.duration * FRAMES_PER_BEAT;
@@ -882,7 +902,9 @@ async function initGame() {
         const noteData = parsedAccompaniment[accompIndex];
 
         if (noteData.id !== null) {
-          spawnNote(noteData, true, timeSinceLastAccomp);
+          // If Melody is selected track, Accomp isAccompaniment = true.
+          // If Accomp is selected track, Accomp isAccompaniment = false.
+          spawnNote(noteData, isMelodyInteractive, timeSinceLastAccomp);
         }
 
         timeUntilNextAccomp = noteData.duration * FRAMES_PER_BEAT;
@@ -914,7 +936,7 @@ async function initGame() {
       const n = activeNotes[i];
       n.y += SPEED * effectiveDelta;
 
-      // Handle Accompaniment (Always auto-play)
+      // Handle Background Tracks (Always auto-play)
       if (n.isAccompaniment) {
         if (n.y + NOTE_HEIGHT >= hitLineY) {
           playBackingNote(n.targetIndex, n.duration);
@@ -924,7 +946,7 @@ async function initGame() {
         continue; // Skip rest of logic for backing tracks
       }
 
-      // Handle Melody
+      // Handle Active User Notes
       if (isDemoPlaying) {
         if (n.y + NOTE_HEIGHT >= hitLineY) {
           autoPlayNote(n.targetIndex, n.duration);
