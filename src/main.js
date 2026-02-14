@@ -51,6 +51,14 @@ const getAccompaniment = () => {
   return "";
 };
 
+const getTitle = () => {
+  const urlTitle = urlParams.get("title");
+  if (urlTitle) {
+    return decodeURIComponent(urlTitle);
+  }
+  return "";
+};
+
 const NOTES_DATA = Object.values(generateNoteRange(START_NOTE, END_NOTE)).map(
   (note) => ({
     id: note,
@@ -87,6 +95,7 @@ const activeNotes = [];
 // UI Elements
 let menuContainer; // Holds Play buttons
 let loadingText;
+let titleText;
 
 // Sequencer State (Melody)
 let parsedMelody = [];
@@ -132,11 +141,18 @@ fileInput.addEventListener("change", async (e) => {
   if (menuContainer) {
     menuContainer.visible = false;
   }
+  if (titleText) {
+    titleText.visible = false;
+  }
   loadingText.text = "Parsing MIDI...";
   loadingText.visible = true;
 
   try {
     const arrayBuffer = await file.arrayBuffer();
+
+    // Use raw filename (without extension) for query parameter
+    const title = file.name.replace(/\.[^/.]+$/, "");
+
     const minMidi = noteNameToMidi(START_NOTE);
     const maxMidi = noteNameToMidi(END_NOTE);
 
@@ -147,8 +163,10 @@ fileInput.addEventListener("change", async (e) => {
     );
 
     const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("title", title);
     newUrl.searchParams.set("bpm", bpm);
     newUrl.searchParams.set("melody", melody);
+
     if (accompaniment) {
       newUrl.searchParams.set("accompaniment", accompaniment);
     } else {
@@ -160,6 +178,7 @@ fileInput.addEventListener("change", async (e) => {
     alert("Failed to parse MIDI file.");
     loadingText.visible = false;
     menuContainer.visible = true;
+    if (titleText) titleText.visible = true;
   }
 });
 
@@ -355,7 +374,7 @@ function createButton(text, x, y, onClick, size = 60, initialColor = 0x333333) {
 function createUI() {
   const style = {
     fontFamily: "Arial",
-    fontSize: 36,
+    fontSize: 32,
     fill: 0xffffff,
     align: "center",
     fontWeight: "bold",
@@ -364,9 +383,29 @@ function createUI() {
 
   loadingText = new PIXI.Text({ text: "Loading Sounds...", style });
   loadingText.x = WIDTH / 2;
-  loadingText.y = HEIGHT / 2 - 50;
+  loadingText.y = HEIGHT / 2 - 80;
   loadingText.anchor.set(0.5);
   uiContainer.addChild(loadingText);
+
+  // Title rendering
+  const title = getTitle();
+  if (title) {
+    const titleStyle = {
+      fontFamily: "Arial",
+      fontSize: 32,
+      fill: 0xffffff,
+      align: "center",
+      fontWeight: "bold",
+      stroke: { color: 0x000000, width: 4 },
+    };
+    // Add spaces to PascalCase for display purposes only
+    const displayTitle = title.replace(/([a-z])([A-Z])/g, "$1 $2");
+    titleText = new PIXI.Text({ text: displayTitle, style: titleStyle });
+    titleText.x = WIDTH / 2;
+    titleText.y = 20;
+    titleText.anchor.set(0.5, 0); // Top-center
+    uiContainer.addChild(titleText);
+  }
 
   // --- MENU CONTAINER ---
   menuContainer = new PIXI.Container();
@@ -481,7 +520,7 @@ function createUI() {
   const totalWidth =
     buttonConfigs.length * btnSize + (buttonConfigs.length - 1) * gap;
   let currentX = WIDTH / 2 - totalWidth / 2 + btnSize / 2;
-  const yPos = HEIGHT / 2 - 100;
+  const yPos = HEIGHT / 2 - 80;
 
   buttonConfigs.forEach((config) => {
     let initialColor = 0x333333;
@@ -524,6 +563,7 @@ function resetGame() {
   activeNotes.length = 0;
 
   menuContainer.visible = false;
+  if (titleText) titleText.visible = false;
   alignCameraToActiveTrack();
   initAudio();
   isGameActive = true;
@@ -546,6 +586,7 @@ function startDemo() {
   activeNotes.length = 0;
 
   menuContainer.visible = false;
+  if (titleText) titleText.visible = false;
   alignCameraToActiveTrack();
   initAudio();
   isGameActive = true;
@@ -554,6 +595,7 @@ function startDemo() {
 function resetToMenu() {
   isGameActive = false;
   menuContainer.visible = true;
+  if (titleText) titleText.visible = true;
 }
 
 function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
