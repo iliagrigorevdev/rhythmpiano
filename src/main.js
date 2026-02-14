@@ -15,10 +15,11 @@ import {
 const WIDTH = 1000;
 const HEIGHT = 400;
 
-const urlParams = new URLSearchParams(window.location.search);
-// 1. Rename to ORIGINAL_BPM to allow dynamic calculation
-const ORIGINAL_BPM = parseInt(urlParams.get("bpm")) || 100;
-const SPEED = parseInt(urlParams.get("speed")) || 4;
+// Helper to get fresh params (fixes PWA state caching issues)
+const getUrlParams = () => new URLSearchParams(window.location.search);
+
+const ORIGINAL_BPM = parseInt(getUrlParams().get("bpm")) || 100;
+const SPEED = parseInt(getUrlParams().get("speed")) || 4;
 
 const START_NOTE = "A0";
 const END_NOTE = "C8";
@@ -35,7 +36,7 @@ const COLOR_WHITE_KEY = 0xf0f0f0;
 const COLOR_BLACK_KEY = 0x202020;
 
 const getMelody = () => {
-  const urlMelody = urlParams.get("melody");
+  const urlMelody = getUrlParams().get("melody");
   if (urlMelody) {
     console.log("Custom melody loaded from URL");
     return decodeURIComponent(urlMelody);
@@ -44,7 +45,7 @@ const getMelody = () => {
 };
 
 const getAccompaniment = () => {
-  const urlAccomp = urlParams.get("accompaniment");
+  const urlAccomp = getUrlParams().get("accompaniment");
   if (urlAccomp) {
     return decodeURIComponent(urlAccomp);
   }
@@ -52,7 +53,7 @@ const getAccompaniment = () => {
 };
 
 const getTitle = () => {
-  const urlTitle = urlParams.get("title");
+  const urlTitle = getUrlParams().get("title");
   if (urlTitle) {
     return decodeURIComponent(urlTitle);
   }
@@ -172,7 +173,9 @@ fileInput.addEventListener("change", async (e) => {
     } else {
       newUrl.searchParams.delete("accompaniment");
     }
-    window.location.href = newUrl.toString();
+
+    // Force a location assignment to ensure PWA navigation
+    window.location.assign(newUrl.toString());
   } catch (err) {
     console.error(err);
     alert("Failed to parse MIDI file.");
