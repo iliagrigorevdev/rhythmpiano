@@ -398,8 +398,11 @@ function createUI() {
       fontWeight: "bold",
       stroke: { color: 0x000000, width: 4 },
     };
-    // Add spaces to PascalCase for display purposes only
-    const displayTitle = title.replace(/([a-z])([A-Z])/g, "$1 $2");
+    const displayTitle = title
+      // Handle standard camelCase (e.g., "myTitle" -> "my Title")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      // Handle consecutive caps followed by lowercase (e.g., "GMajor" -> "G Major")
+      .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2");
     titleText = new PIXI.Text({ text: displayTitle, style: titleStyle });
     titleText.x = WIDTH / 2;
     titleText.y = 20;
