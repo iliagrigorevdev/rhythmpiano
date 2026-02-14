@@ -456,6 +456,8 @@ function createUI() {
       text: "📂",
       onClick: (e) => {
         e.stopPropagation();
+        // Clear value so 'change' event fires even if same file is selected
+        fileInput.value = "";
         fileInput.click();
       },
     });
