@@ -32,7 +32,7 @@ let isHalfSpeed = false;
 
 // 3. Helper functions to get current timing
 const getCurrentBpm = () => (isHalfSpeed ? ORIGINAL_BPM / 2 : ORIGINAL_BPM);
-const getFramesPerBeat = () => ((60 / getCurrentBpm()) * 60) / 2;
+const getFramesPerBeat = () => ((60 / ORIGINAL_BPM) * 60) / 2;
 
 // --- COLORS ---
 const COLOR_WHITE_KEY = 0xf0f0f0;
@@ -722,6 +722,10 @@ async function initGame() {
     if (!isGameActive) return;
 
     let effectiveDelta = ticker.deltaTime;
+
+    if (isHalfSpeed) {
+      effectiveDelta *= 0.5;
+    }
 
     if (isWaitMode && !isDemoPlaying && activeNotes.length > 0) {
       const hitLineY = pianoKeys[0].y;
