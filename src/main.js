@@ -519,6 +519,16 @@ function createUI() {
     }
   }
 
+  // Info Button (ℹ️)
+  buttonConfigs.push({
+    text: "ℹ️",
+    onClick: () => {
+      alert(
+        "🎹 Audio Credits:\n\nSalamander Grand Piano V3\nAuthor: Alexander Holm\nLicense: CC BY 3.0",
+      );
+    },
+  });
+
   // Calculate layout to center items
   const btnSize = 70;
   const gap = 20;
