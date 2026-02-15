@@ -10,6 +10,7 @@ import {
   generateNoteRange,
   noteNameToMidi,
 } from "./audio";
+import { initUI } from "./ui";
 
 // --- CONFIGURATION ---
 const WIDTH = 1000;
@@ -72,7 +73,6 @@ const NOTES_DATA = Object.values(generateNoteRange(START_NOTE, END_NOTE)).map(
 // --- DYNAMIC DIMENSIONS & SCROLLING ---
 const VISIBLE_KEYS = 10;
 const TOTAL_WHITE_KEYS = NOTES_DATA.filter((n) => n.type === "white").length;
-const AVAILABLE_WIDTH = WIDTH * 0.95;
 
 const WHITE_KEY_WIDTH = WIDTH / VISIBLE_KEYS;
 const BLACK_KEY_WIDTH = WHITE_KEY_WIDTH * 0.65;
@@ -95,10 +95,12 @@ const uiContainer = new PIXI.Container();
 const pianoKeys = [];
 const activeNotes = [];
 
-// UI Elements
-let menuContainer; // Holds Play buttons
-let loadingText;
-let titleText;
+// UI Element References (Populated by initUI)
+let uiRefs = {
+  loadingText: null,
+  titleText: null,
+  menuContainer: null,
+};
 
 // Sequencer State (Melody)
 let parsedMelody = [];
@@ -143,14 +145,12 @@ fileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  if (menuContainer) {
-    menuContainer.visible = false;
+  if (uiRefs.menuContainer) uiRefs.menuContainer.visible = false;
+  if (uiRefs.titleText) uiRefs.titleText.visible = false;
+  if (uiRefs.loadingText) {
+    uiRefs.loadingText.text = "Parsing MIDI...";
+    uiRefs.loadingText.visible = true;
   }
-  if (titleText) {
-    titleText.visible = false;
-  }
-  loadingText.text = "Parsing MIDI...";
-  loadingText.visible = true;
 
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -186,9 +186,9 @@ fileInput.addEventListener("change", async (e) => {
   } catch (err) {
     console.error(err);
     alert("Failed to parse MIDI file.");
-    loadingText.visible = false;
-    menuContainer.visible = true;
-    if (titleText) titleText.visible = true;
+    if (uiRefs.loadingText) uiRefs.loadingText.visible = false;
+    if (uiRefs.menuContainer) uiRefs.menuContainer.visible = true;
+    if (uiRefs.titleText) uiRefs.titleText.visible = true;
   }
 });
 
@@ -325,241 +325,6 @@ function alignCameraToActiveTrack() {
   }
 }
 
-/**
- * Creates a button with support for dynamic color updates.
- */
-function createButton(text, x, y, onClick, size = 60, initialColor = 0x333333) {
-  const container = new PIXI.Container();
-  container.x = x;
-  container.y = y;
-  container.eventMode = "static";
-  container.cursor = "pointer";
-  container.baseColor = initialColor;
-
-  const bg = new PIXI.Graphics();
-  container.addChild(bg);
-
-  // Helper function to redraw the background
-  const render = (color, alpha) => {
-    bg.clear();
-    bg.roundRect(-size / 2, -size / 2, size, size, 12);
-    bg.fill({ color: color, alpha: alpha });
-    bg.stroke({ width: 3, color: 0xffffff });
-  };
-
-  // Initial Draw
-  render(initialColor, 0.9);
-
-  const style = {
-    fontFamily: "Arial",
-    fontSize: size * 0.5,
-    fill: 0xffffff,
-    align: "center",
-  };
-
-  const textObj = new PIXI.Text({ text, style });
-  textObj.anchor.set(0.5);
-  container.addChild(textObj);
-
-  // Expose method to update color externally
-  container.updateColor = (color) => {
-    container.baseColor = color;
-    render(color, 1.0);
-  };
-
-  container.on("pointertap", (e) => onClick(e, container));
-
-  container.on("pointerover", () => {
-    render(container.baseColor, 1.0);
-    container.scale.set(1.1);
-  });
-  container.on("pointerout", () => {
-    render(container.baseColor, 0.9);
-    container.scale.set(1.0);
-  });
-
-  return container;
-}
-
-function createUI() {
-  const style = {
-    fontFamily: "Arial",
-    fontSize: 32,
-    fill: 0xffffff,
-    align: "center",
-    fontWeight: "bold",
-    stroke: { color: 0x000000, width: 4 },
-  };
-
-  loadingText = new PIXI.Text({ text: "Loading Sounds...", style });
-  loadingText.x = WIDTH / 2;
-  loadingText.y = HEIGHT / 2 - 80;
-  loadingText.anchor.set(0.5);
-  uiContainer.addChild(loadingText);
-
-  // Title rendering
-  const title = getTitle();
-  if (title) {
-    const titleStyle = {
-      fontFamily: "Arial",
-      fontSize: 36,
-      fill: 0xffffff,
-      align: "center",
-      fontWeight: "bold",
-      stroke: { color: 0x000000, width: 4 },
-    };
-    const displayTitle = title
-      // Handle standard camelCase (e.g., "myTitle" -> "my Title")
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      // Handle consecutive caps followed by lowercase (e.g., "GMajor" -> "G Major")
-      .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2");
-    titleText = new PIXI.Text({ text: displayTitle, style: titleStyle });
-    titleText.x = WIDTH / 2;
-    titleText.y = 20;
-    titleText.anchor.set(0.5, 0); // Top-center
-
-    // Make Title interactive only if Demo Mode is active
-    if (IS_DEMO_MODE) {
-      titleText.eventMode = "static";
-      titleText.cursor = "pointer";
-      titleText.on("pointertap", () => {
-        selectedTrackType = "melody";
-        startDemo();
-      });
-    }
-
-    uiContainer.addChild(titleText);
-  }
-
-  // --- MENU CONTAINER ---
-  menuContainer = new PIXI.Container();
-  menuContainer.visible = false;
-  uiContainer.addChild(menuContainer);
-
-  const buttonConfigs = [];
-
-  // Load MIDI (📂)
-  if (parsedMelody.length === 0) {
-    buttonConfigs.push({
-      text: "📂",
-      onClick: (e) => {
-        e.stopPropagation();
-        // Clear value so 'change' event fires even if same file is selected
-        fileInput.value = "";
-        fileInput.click();
-      },
-    });
-  }
-
-  if (!IS_DEMO_MODE) {
-    // Play Button (▶️) - plays whatever track is selected in query params (default melody)
-    if (parsedMelody.length > 0 || parsedAccompaniment.length > 0) {
-      buttonConfigs.push({
-        text: "▶️",
-        onClick: () => {
-          resetGame();
-        },
-      });
-    }
-
-    // Only show these controls if a melody is actually loaded
-    if (parsedMelody.length > 0) {
-      // Wait Mode Toggle (⏳)
-      buttonConfigs.push({
-        text: "⏳",
-        isToggle: true,
-        initialState: isWaitMode,
-        onClick: (e, btnContainer) => {
-          e.stopPropagation();
-          isWaitMode = !isWaitMode;
-
-          // Update Visuals by redrawing
-          const newColor = isWaitMode ? 0x2e8b57 : 0x333333; // Green vs Default
-          btnContainer.updateColor(newColor);
-        },
-      });
-
-      // Slow Mode Toggle (🐢)
-      buttonConfigs.push({
-        text: "🐢",
-        isToggle: true,
-        initialState: isHalfSpeed,
-        onClick: (e, btnContainer) => {
-          e.stopPropagation();
-          isHalfSpeed = !isHalfSpeed;
-
-          // Update Visuals by redrawing
-          const newColor = isHalfSpeed ? 0x2e8b57 : 0x333333; // Green (Active) vs Default
-          btnContainer.updateColor(newColor);
-        },
-      });
-
-      // Share (🔗)
-      buttonConfigs.push({
-        text: "🔗",
-        onClick: async () => {
-          let url = window.location.href;
-          url = url.replace(/%7E/g, "~");
-          if (navigator.share) {
-            try {
-              await navigator.share({
-                title: "Rhythm Piano",
-                text: "",
-                url: url,
-              });
-            } catch (err) {}
-          } else {
-            try {
-              await navigator.clipboard.writeText(url);
-              alert("URL copied to clipboard!");
-            } catch (err) {}
-          }
-        },
-      });
-    }
-  }
-
-  // Info Button (ℹ️)
-  buttonConfigs.push({
-    text: "ℹ️",
-    onClick: () => {
-      alert(
-        "🎹 Audio Credits:\n\nSalamander Grand Piano V3\nAuthor: Alexander Holm\nLicense: CC BY 3.0",
-      );
-    },
-  });
-
-  // Calculate layout to center items
-  const btnSize = 70;
-  const gap = 20;
-  const totalWidth =
-    buttonConfigs.length * btnSize + (buttonConfigs.length - 1) * gap;
-  let currentX = WIDTH / 2 - totalWidth / 2 + btnSize / 2;
-  const yPos = HEIGHT / 2 - 80;
-
-  buttonConfigs.forEach((config) => {
-    let initialColor = 0x333333;
-    if (config.isToggle) {
-      if (config.text === "⏳") {
-        initialColor = config.initialState ? 0x2e8b57 : 0x333333;
-      } else if (config.text === "🐢") {
-        initialColor = config.initialState ? 0x2e8b57 : 0x333333;
-      }
-    }
-
-    const btn = createButton(
-      config.text,
-      currentX,
-      yPos,
-      config.onClick,
-      btnSize,
-      initialColor,
-    );
-    menuContainer.addChild(btn);
-    currentX += btnSize + gap;
-  });
-}
-
 // --- GAME LOGIC ---
 function resetGame() {
   melodyIndex = 0;
@@ -577,8 +342,8 @@ function resetGame() {
   }
   activeNotes.length = 0;
 
-  menuContainer.visible = false;
-  if (titleText) titleText.visible = false;
+  uiRefs.menuContainer.visible = false;
+  if (uiRefs.titleText) uiRefs.titleText.visible = false;
   alignCameraToActiveTrack();
   initAudio();
   isGameActive = true;
@@ -600,8 +365,8 @@ function startDemo() {
   }
   activeNotes.length = 0;
 
-  menuContainer.visible = false;
-  if (titleText) titleText.visible = false;
+  uiRefs.menuContainer.visible = false;
+  if (uiRefs.titleText) uiRefs.titleText.visible = false;
   alignCameraToActiveTrack();
   initAudio();
   isGameActive = true;
@@ -609,8 +374,8 @@ function startDemo() {
 
 function resetToMenu() {
   isGameActive = false;
-  menuContainer.visible = true;
-  if (titleText) titleText.visible = true;
+  uiRefs.menuContainer.visible = true;
+  if (uiRefs.titleText) uiRefs.titleText.visible = true;
 }
 
 function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
@@ -654,7 +419,7 @@ function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
 }
 
 function pressKey(index) {
-  if (!isGameActive && !loadingText.visible) {
+  if (!isGameActive && (!uiRefs.loadingText || !uiRefs.loadingText.visible)) {
     if (parsedMelody.length > 0 && !IS_DEMO_MODE) {
       resetGame();
     }
@@ -869,7 +634,55 @@ async function initGame() {
   parsedAccompaniment = parseABC(getAccompaniment());
 
   createPiano();
-  createUI();
+
+  // Initialize UI via external module
+  uiRefs = initUI(
+    uiContainer,
+    { width: WIDTH, height: HEIGHT },
+    {
+      title: getTitle(),
+      isDemoMode: IS_DEMO_MODE,
+      hasMelody: parsedMelody.length > 0,
+      hasAccompaniment: parsedAccompaniment.length > 0,
+      initialWaitMode: isWaitMode,
+      initialSpeedMode: isHalfSpeed,
+    },
+    {
+      onPlay: resetGame,
+      onDemoStart: startDemo,
+      onLoad: () => {
+        // Clear value so 'change' event fires even if same file is selected
+        fileInput.value = "";
+        fileInput.click();
+      },
+      onToggleWait: () => {
+        isWaitMode = !isWaitMode;
+        return isWaitMode;
+      },
+      onToggleSpeed: () => {
+        isHalfSpeed = !isHalfSpeed;
+        return isHalfSpeed;
+      },
+      onShare: async () => {
+        let url = window.location.href;
+        url = url.replace(/%7E/g, "~");
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: "Rhythm Piano",
+              text: "",
+              url: url,
+            });
+          } catch (err) {}
+        } else {
+          try {
+            await navigator.clipboard.writeText(url);
+            alert("URL copied to clipboard!");
+          } catch (err) {}
+        }
+      },
+    },
+  );
 
   alignCameraToActiveTrack();
 
@@ -900,8 +713,8 @@ async function initGame() {
 
   await cacheAllNoteSounds();
 
-  loadingText.visible = false;
-  menuContainer.visible = true;
+  uiRefs.loadingText.visible = false;
+  uiRefs.menuContainer.visible = true;
 
   app.ticker.add((ticker) => {
     updateCamera();
