@@ -306,7 +306,12 @@ function alignCameraToActiveTrack() {
   let maxIndex = -Infinity;
   let found = false;
 
-  activeTrack.forEach((n) => {
+  // Change: Scan only the first batch of notes to set initial camera position
+  const SCAN_WINDOW = 30;
+  const limit = Math.min(activeTrack.length, SCAN_WINDOW);
+
+  for (let i = 0; i < limit; i++) {
+    const n = activeTrack[i];
     if (n.id) {
       const idx = NOTES_DATA.findIndex((nd) => nd.id === n.id);
       if (idx !== -1) {
@@ -315,7 +320,7 @@ function alignCameraToActiveTrack() {
         found = true;
       }
     }
-  });
+  }
 
   if (found) {
     const midIndex = Math.floor((minIndex + maxIndex) / 2);
