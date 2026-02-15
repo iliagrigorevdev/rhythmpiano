@@ -118,7 +118,9 @@ let isWaitMode = true;
 
 // Game State
 let isDemoPlaying = false;
-let selectedTrackType = "melody"; // 'melody' or 'accompaniment'
+// Determine track type from URL parameter (default to 'melody')
+let selectedTrackType =
+  getUrlParams().get("track") === "accompaniment" ? "accompaniment" : "melody";
 
 // Camera State
 let targetCameraX = 0;
@@ -169,6 +171,9 @@ fileInput.addEventListener("change", async (e) => {
     newUrl.searchParams.set("title", title);
     newUrl.searchParams.set("bpm", bpm);
     newUrl.searchParams.set("melody", melody);
+
+    // Reset track selection to default (melody) on new file load
+    newUrl.searchParams.delete("track");
 
     if (accompaniment) {
       newUrl.searchParams.set("accompaniment", accompaniment);
@@ -447,23 +452,11 @@ function createUI() {
   }
 
   if (!IS_DEMO_MODE) {
-    // Play Melody (🎵)
-    if (parsedMelody.length > 0) {
+    // Play Button (▶️) - plays whatever track is selected in query params (default melody)
+    if (parsedMelody.length > 0 || parsedAccompaniment.length > 0) {
       buttonConfigs.push({
-        text: "🎵",
+        text: "▶️",
         onClick: () => {
-          selectedTrackType = "melody";
-          resetGame();
-        },
-      });
-    }
-
-    // Play Accompaniment (🎹)
-    if (parsedAccompaniment.length > 0) {
-      buttonConfigs.push({
-        text: "🎹",
-        onClick: () => {
-          selectedTrackType = "accompaniment";
           resetGame();
         },
       });
