@@ -20,6 +20,8 @@ const getUrlParams = () => new URLSearchParams(window.location.search);
 
 const ORIGINAL_BPM = parseInt(getUrlParams().get("bpm")) || 100;
 const SPEED = parseInt(getUrlParams().get("speed")) || 4;
+// Check if Demo Mode is active via query parameter
+const IS_DEMO_MODE = getUrlParams().get("demo") === "true";
 
 const START_NOTE = "A0";
 const END_NOTE = "C8";
@@ -395,7 +397,7 @@ function createUI() {
   if (title) {
     const titleStyle = {
       fontFamily: "Arial",
-      fontSize: 32,
+      fontSize: 36,
       fill: 0xffffff,
       align: "center",
       fontWeight: "bold",
@@ -410,6 +412,17 @@ function createUI() {
     titleText.x = WIDTH / 2;
     titleText.y = 20;
     titleText.anchor.set(0.5, 0); // Top-center
+
+    // Make Title interactive only if Demo Mode is active
+    if (IS_DEMO_MODE) {
+      titleText.eventMode = "static";
+      titleText.cursor = "pointer";
+      titleText.on("pointertap", () => {
+        selectedTrackType = "melody";
+        startDemo();
+      });
+    }
+
     uiContainer.addChild(titleText);
   }
 
@@ -420,40 +433,7 @@ function createUI() {
 
   const buttonConfigs = [];
 
-  // 1. Play Melody (🎵)
-  if (parsedMelody.length > 0) {
-    buttonConfigs.push({
-      text: "🎵",
-      onClick: () => {
-        selectedTrackType = "melody";
-        resetGame();
-      },
-    });
-  }
-
-  // 2. Play Accompaniment (🎹)
-  if (parsedAccompaniment.length > 0) {
-    buttonConfigs.push({
-      text: "🎹",
-      onClick: () => {
-        selectedTrackType = "accompaniment";
-        resetGame();
-      },
-    });
-  }
-
-  // 3. Demo Play (▶️)
-  if (parsedMelody.length > 0) {
-    buttonConfigs.push({
-      text: "▶️",
-      onClick: () => {
-        selectedTrackType = "melody";
-        startDemo();
-      },
-    });
-  }
-
-  // 4. Load MIDI (📂)
+  // Load MIDI (📂)
   if (parsedMelody.length === 0) {
     buttonConfigs.push({
       text: "📂",
@@ -466,60 +446,84 @@ function createUI() {
     });
   }
 
-  // Only show these controls if a melody is actually loaded
-  if (parsedMelody.length > 0) {
-    // 5. Wait Mode Toggle (⏳)
-    buttonConfigs.push({
-      text: "⏳",
-      isToggle: true,
-      initialState: isWaitMode,
-      onClick: (e, btnContainer) => {
-        e.stopPropagation();
-        isWaitMode = !isWaitMode;
+  if (!IS_DEMO_MODE) {
+    // Play Melody (🎵)
+    if (parsedMelody.length > 0) {
+      buttonConfigs.push({
+        text: "🎵",
+        onClick: () => {
+          selectedTrackType = "melody";
+          resetGame();
+        },
+      });
+    }
 
-        // Update Visuals by redrawing
-        const newColor = isWaitMode ? 0x2e8b57 : 0x333333; // Green vs Default
-        btnContainer.updateColor(newColor);
-      },
-    });
+    // Play Accompaniment (🎹)
+    if (parsedAccompaniment.length > 0) {
+      buttonConfigs.push({
+        text: "🎹",
+        onClick: () => {
+          selectedTrackType = "accompaniment";
+          resetGame();
+        },
+      });
+    }
 
-    // 6. Slow Mode Toggle (🐢)
-    buttonConfigs.push({
-      text: "🐢",
-      isToggle: true,
-      initialState: isHalfSpeed,
-      onClick: (e, btnContainer) => {
-        e.stopPropagation();
-        isHalfSpeed = !isHalfSpeed;
+    // Only show these controls if a melody is actually loaded
+    if (parsedMelody.length > 0) {
+      // Wait Mode Toggle (⏳)
+      buttonConfigs.push({
+        text: "⏳",
+        isToggle: true,
+        initialState: isWaitMode,
+        onClick: (e, btnContainer) => {
+          e.stopPropagation();
+          isWaitMode = !isWaitMode;
 
-        // Update Visuals by redrawing
-        const newColor = isHalfSpeed ? 0x2e8b57 : 0x333333; // Green (Active) vs Default
-        btnContainer.updateColor(newColor);
-      },
-    });
+          // Update Visuals by redrawing
+          const newColor = isWaitMode ? 0x2e8b57 : 0x333333; // Green vs Default
+          btnContainer.updateColor(newColor);
+        },
+      });
 
-    // 7. Share (🔗)
-    buttonConfigs.push({
-      text: "🔗",
-      onClick: async () => {
-        let url = window.location.href;
-        url = url.replace(/%7E/g, "~");
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: "Rhythm Piano",
-              text: "",
-              url: url,
-            });
-          } catch (err) {}
-        } else {
-          try {
-            await navigator.clipboard.writeText(url);
-            alert("URL copied to clipboard!");
-          } catch (err) {}
-        }
-      },
-    });
+      // Slow Mode Toggle (🐢)
+      buttonConfigs.push({
+        text: "🐢",
+        isToggle: true,
+        initialState: isHalfSpeed,
+        onClick: (e, btnContainer) => {
+          e.stopPropagation();
+          isHalfSpeed = !isHalfSpeed;
+
+          // Update Visuals by redrawing
+          const newColor = isHalfSpeed ? 0x2e8b57 : 0x333333; // Green (Active) vs Default
+          btnContainer.updateColor(newColor);
+        },
+      });
+
+      // Share (🔗)
+      buttonConfigs.push({
+        text: "🔗",
+        onClick: async () => {
+          let url = window.location.href;
+          url = url.replace(/%7E/g, "~");
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: "Rhythm Piano",
+                text: "",
+                url: url,
+              });
+            } catch (err) {}
+          } else {
+            try {
+              await navigator.clipboard.writeText(url);
+              alert("URL copied to clipboard!");
+            } catch (err) {}
+          }
+        },
+      });
+    }
   }
 
   // Calculate layout to center items
@@ -648,7 +652,7 @@ function spawnNote(noteData, isAccompaniment = false, offsetFrames = 0) {
 
 function pressKey(index) {
   if (!isGameActive && !loadingText.visible) {
-    if (parsedMelody.length > 0) {
+    if (parsedMelody.length > 0 && !IS_DEMO_MODE) {
       resetGame();
     }
     return;
